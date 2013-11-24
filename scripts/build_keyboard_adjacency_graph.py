@@ -88,7 +88,7 @@ def to_str(graph, graph_name):
 	return (graph_name + '\x02') + ('\x02'.join(g) + '\x02')
 
 def to_array(data):
-	return 'const uint8_t adjacency_graphs::data[{0}] = {{{1}}};'.format(len(data), ','.join([str(ord(c)) for c in data]))
+	return 'const size_t zxcppvbn::adjacency_graphs_size = {0};\n\nconst uint8_t zxcppvbn::adjacency_graphs[] = {{{1}}};\n'.format(len(data), ','.join([str(ord(c)) for c in data]))
 
 def main():
 	graph_specs = [('qwerty', (qwerty, True)),
@@ -102,7 +102,8 @@ def main():
 	with gzip.GzipFile('adjacency_graphs', 'wb', 9, compressed) as f:
 		f.write(raw)
 	
-	with open('../adjacency_graphs.inc', 'w') as f:
+	with open('../adjacency_graphs.cpp', 'w') as f:
+		f.write('#include "zxcppvbn.hpp"\n\n')
 		f.write(to_array(compressed.getvalue()))
 	compressed.close()
 

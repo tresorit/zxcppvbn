@@ -1,11 +1,7 @@
-#include "../frequency_lists.hpp"
-#include "../adjacency_graphs.hpp"
-
-using namespace zxcppvbn;
+#include "../zxcppvbn.hpp"
 
 int main()
 {
-	std::shared_ptr<frequency_lists> fl = frequency_lists::load();
-	std::shared_ptr<adjacency_graphs> ag = adjacency_graphs::load();
-	return 0;
+	zxcppvbn zxcvbn;
+	std::unique_ptr<zxcppvbn::result> result = zxcvbn("HelloWorld");
 }

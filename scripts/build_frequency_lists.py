@@ -149,7 +149,7 @@ def to_str(lst, lst_name):
 	return (lst_name + '\x02') + ('\x02'.join(lst) + '\x02')
 
 def to_array(data):
-	return 'const uint8_t frequency_lists::data[{0}] = {{{1}}};'.format(len(data), ','.join([str(ord(c)) for c in data]))
+	return 'const size_t zxcppvbn::frequency_lists_size = {0};\n\nconst uint8_t zxcppvbn::frequency_lists[] = {{{1}}};\n'.format(len(data), ','.join([str(ord(c)) for c in data]))
 
 def main():
 	english = get_ranked_english()
@@ -178,7 +178,8 @@ def main():
 	with gzip.GzipFile('frequency_lists', 'wb', 9, compressed) as f:
 		f.write(raw)
 	
-	with open('../frequency_lists.inc', 'w') as f:
+	with open('../frequency_lists.cpp', 'w') as f:
+		f.write('#include "zxcppvbn.hpp"\n\n')
 		f.write(to_array(compressed.getvalue()))
 	compressed.close()
 	

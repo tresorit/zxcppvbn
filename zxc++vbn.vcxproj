@@ -76,7 +76,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <None Include="adjacency_graphs.inc" />
     <None Include="data\tv_and_movie_freqlist1-1000.html" />
     <None Include="data\tv_and_movie_freqlist10001-12000.html" />
     <None Include="data\tv_and_movie_freqlist1001-2000.html" />
@@ -103,7 +102,6 @@
     <None Include="data\tv_and_movie_freqlist7001-8000.html" />
     <None Include="data\tv_and_movie_freqlist8001-9000.html" />
     <None Include="data\tv_and_movie_freqlist9001-10000.html" />
-    <None Include="frequency_lists.inc" />
     <None Include="scripts\build_frequency_lists.py" />
     <None Include="scripts\build_keyboard_adjacency_graph.py" />
   </ItemGroup>
@@ -116,6 +114,8 @@
   <ItemGroup>
     <ClCompile Include="adjacency_graphs.cpp" />
     <ClCompile Include="frequency_lists.cpp" />
+    <ClCompile Include="init.cpp" />
+    <ClCompile Include="matching.cpp" />
     <ClCompile Include="test\main.cpp" />
     <ClCompile Include="tools\tinf\adler32.c" />
     <ClCompile Include="tools\tinf\crc32.c" />
@@ -124,8 +124,7 @@
     <ClCompile Include="tools\tinf\tinfzlib.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="adjacency_graphs.hpp" />
-    <ClInclude Include="frequency_lists.hpp" />
+    <ClInclude Include="zxcppvbn.hpp" />
     <ClInclude Include="tools\tinf\tinf.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
