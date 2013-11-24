@@ -1,20 +1,30 @@
 #ifndef FREQUENCY_LISTS_HPP
 #define FREQUENCY_LISTS_HPP
 
-extern const char* passwords[];
-extern const size_t passwords_count;
+#include <cstdint>
+#include <memory>
+#include <string>
+#include <map>
+#include <vector>
 
-extern const char* male_names[];
-extern const size_t male_names_count;
+namespace zxcppvbn
+{
 
-extern const char* female_names[];
-extern const size_t female_names_count;
+class frequency_lists
+{
+private:
+	static const uint8_t data[];
+	std::map<std::string, std::vector<std::string>> lists;
 
-extern const char* surnames[];
-extern const size_t surnames_count;
+	frequency_lists();
+	frequency_lists(const frequency_lists& fl) /* = delete */;
+	frequency_lists& operator=(const frequency_lists& fl) /* = delete */;
+public:
+	static std::shared_ptr<frequency_lists> load();
 
-extern const char* english[];
-extern const size_t english_count;
+	const std::vector<std::string>& get(const std::string& dictionary) const;
+};
 
+}
 
 #endif
