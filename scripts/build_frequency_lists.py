@@ -146,7 +146,7 @@ def filter_ascii(lst):
 	return [word for word in lst if all(ord(c) < 128 for c in word)]
 
 def to_str(lst, lst_name):
-	return (lst_name + '\x00') + ('\x00'.join(lst) + '\x00')
+	return (lst_name + '\x02') + ('\x02'.join(lst) + '\x02')
 
 def to_array(data):
 	return 'const uint8_t frequency_lists::data[{0}] = {{{1}}};'.format(len(data), ','.join([str(ord(c)) for c in data]))
@@ -172,7 +172,7 @@ def main():
 	
 	lsts = locals() # words are all ascii at this point
 	lst_names = 'passwords male_names female_names surnames english'.split();
-	raw = '\x00'.join([to_str(lsts[lst_name], lst_name) for lst_name in lst_names]) + '\x00\x00'
+	raw = '\x01'.join([to_str(lsts[lst_name], lst_name) for lst_name in lst_names]) + '\x01\x00'
 	
 	compressed = StringIO.StringIO()
 	with gzip.GzipFile('frequency_lists', 'wb', 9, compressed) as f:

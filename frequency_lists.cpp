@@ -31,15 +31,18 @@ std::shared_ptr<frequency_lists> frequency_lists::load()
 	size_t i = 0;
 	while(raw[i] != 0) {
 		size_t dbegin = i;
-		while(raw[i] != 0) i++;
+		while(raw[i] != 2) i++;
 		std::string d(&raw[dbegin], &raw[i++]);
+
 		std::vector<std::string> l;
-		while(raw[i] != 0) {
+		while(raw[i] != 1) {
 			size_t wbegin = i;
-			while(raw[i] != 0) i++;
+			while(raw[i] != 2) i++;
 			std::string w(&raw[wbegin], &raw[i++]);
+
 			l.push_back(w);
 		}
+
 		result->lists.insert(std::make_pair(d, l));
 		i++;
 	}

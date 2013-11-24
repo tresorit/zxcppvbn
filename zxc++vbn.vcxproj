@@ -76,6 +76,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <None Include="adjacency_graphs.inc" />
     <None Include="data\tv_and_movie_freqlist1-1000.html" />
     <None Include="data\tv_and_movie_freqlist10001-12000.html" />
     <None Include="data\tv_and_movie_freqlist1001-2000.html" />
@@ -113,6 +114,7 @@
     <Text Include="data\us_census_2000_surnames.txt" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="adjacency_graphs.cpp" />
     <ClCompile Include="frequency_lists.cpp" />
     <ClCompile Include="test\main.cpp" />
     <ClCompile Include="tools\tinf\adler32.c" />
@@ -122,6 +124,7 @@
     <ClCompile Include="tools\tinf\tinfzlib.c" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="adjacency_graphs.hpp" />
     <ClInclude Include="frequency_lists.hpp" />
     <ClInclude Include="tools\tinf\tinf.h" />
   </ItemGroup>

@@ -1,17 +1,19 @@
-import simplejson
+import os
+import gzip
+import StringIO
 
 qwerty = r'''
 `~ 1! 2@ 3# 4$ 5% 6^ 7& 8* 9( 0) -_ =+
-	qQ wW eE rR tT yY uU iI oO pP [{ ]} \|
-	 aA sS dD fF gG hH jJ kK lL ;: '"
-	  zZ xX cC vV bB nN mM ,< .> /?
+    qQ wW eE rR tT yY uU iI oO pP [{ ]} \|
+     aA sS dD fF gG hH jJ kK lL ;: '"
+      zZ xX cC vV bB nN mM ,< .> /?
 '''
 
 dvorak = r'''
 `~ 1! 2@ 3# 4$ 5% 6^ 7& 8* 9( 0) [{ ]}
-	'" ,< .> pP yY fF gG cC rR lL /? =+ \|
-	 aA oO eE uU iI dD hH tT nN sS -_
-	  ;: qQ jJ kK xX bB mM wW vV zZ
+    '" ,< .> pP yY fF gG cC rR lL /? =+ \|
+     aA oO eE uU iI dD hH tT nN sS -_
+      ;: qQ jJ kK xX bB mM wW vV zZ
 '''
 
 keypad = r'''
@@ -75,11 +77,37 @@ def build_graph(layout_str, slanted):
 				adjacency_graph[char].append(position_table.get(coord, None))
 	return adjacency_graph
 
+def to_str2(list, chars):
+	tmp = ['' if l == None else l for l in list]
+	return (chars + '\x03') + ('\x03'.join(tmp) + '\x03')
+
+def to_str(graph, graph_name):
+	g = []
+	for c in graph:
+		g.append(to_str2(graph[c], c))
+	return (graph_name + '\x02') + ('\x02'.join(g) + '\x02')
+
+def to_array(data):
+	return 'const uint8_t adjacency_graphs::data[{0}] = {{{1}}};'.format(len(data), ','.join([str(ord(c)) for c in data]))
+
+def main():
+	graph_specs = [('qwerty', (qwerty, True)),
+					('dvorak', (dvorak, True)),
+					('keypad', (keypad, False)),
+					('mac_keypad', (mac_keypad, False))]
+	
+	raw = '\x01'.join([to_str(build_graph(*args), graph_name) for graph_name, args in graph_specs]) + '\x01\x00'
+	
+	compressed = StringIO.StringIO()
+	with gzip.GzipFile('adjacency_graphs', 'wb', 9, compressed) as f:
+		f.write(raw)
+	
+	with open('../adjacency_graphs.inc', 'w') as f:
+		f.write(to_array(compressed.getvalue()))
+	compressed.close()
+
 if __name__ == '__main__':
-	with open('adjacency_graphs.js', 'w') as f:
-		for graph_name, args in [('qwerty', (qwerty, True)),
-								 ('dvorak', (dvorak, True)),
-								 ('keypad', (keypad, False)),
-								 ('mac_keypad', (mac_keypad, False))]:
-			graph = build_graph(*args)
-			f.write('var %s = %s;\n\n' % (graph_name, simplejson.dumps(graph, sort_keys=True)))
+	if os.path.basename(os.getcwd()) != 'scripts':
+		print 'run this from the scripts directory'
+		exit(1)
+	main()
