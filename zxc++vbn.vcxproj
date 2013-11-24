@@ -1,0 +1,123 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A86C25E3-C23B-47BC-97DD-5F262FF66173}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <RootNamespace>zxcvbn</RootNamespace>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v110</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v110</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>false</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>
+      </PrecompiledHeader>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Console</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <None Include="data\tv_and_movie_freqlist1-1000.html" />
+    <None Include="data\tv_and_movie_freqlist10001-12000.html" />
+    <None Include="data\tv_and_movie_freqlist1001-2000.html" />
+    <None Include="data\tv_and_movie_freqlist12001-14000.html" />
+    <None Include="data\tv_and_movie_freqlist14001-16000.html" />
+    <None Include="data\tv_and_movie_freqlist16001-18000.html" />
+    <None Include="data\tv_and_movie_freqlist18001-20000.html" />
+    <None Include="data\tv_and_movie_freqlist20001-22000.html" />
+    <None Include="data\tv_and_movie_freqlist2001-3000.html" />
+    <None Include="data\tv_and_movie_freqlist22001-24000.html" />
+    <None Include="data\tv_and_movie_freqlist24001-26000.html" />
+    <None Include="data\tv_and_movie_freqlist26001-28000.html" />
+    <None Include="data\tv_and_movie_freqlist28001-30000.html" />
+    <None Include="data\tv_and_movie_freqlist30001-32000.html" />
+    <None Include="data\tv_and_movie_freqlist3001-4000.html" />
+    <None Include="data\tv_and_movie_freqlist32001-34000.html" />
+    <None Include="data\tv_and_movie_freqlist34001-36000.html" />
+    <None Include="data\tv_and_movie_freqlist36001-38000.html" />
+    <None Include="data\tv_and_movie_freqlist38001-40000.html" />
+    <None Include="data\tv_and_movie_freqlist40001-41284.html" />
+    <None Include="data\tv_and_movie_freqlist4001-5000.html" />
+    <None Include="data\tv_and_movie_freqlist5001-6000.html" />
+    <None Include="data\tv_and_movie_freqlist6001-7000.html" />
+    <None Include="data\tv_and_movie_freqlist7001-8000.html" />
+    <None Include="data\tv_and_movie_freqlist8001-9000.html" />
+    <None Include="data\tv_and_movie_freqlist9001-10000.html" />
+    <None Include="scripts\build_frequency_lists.py" />
+    <None Include="scripts\build_keyboard_adjacency_graph.py" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="data\common_passwords.txt" />
+    <Text Include="data\us_census_2000_female_first.txt" />
+    <Text Include="data\us_census_2000_male_first.txt" />
+    <Text Include="data\us_census_2000_surnames.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="frequency_lists.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="frequency_lists.hpp" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
