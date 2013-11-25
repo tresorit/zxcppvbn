@@ -69,6 +69,8 @@ private:
 	std::vector<std::unique_ptr<match_result>> dictionary_match(const std::string& password, const std::string& dictionary);
 
 	std::map<char, std::vector<char>> relevent_l33t_subtable(const std::string& password);
+	void enumerate_l33t_subs(std::map<char, std::vector<char>>& table);
+	std::vector<std::unique_ptr<match_result>> l33t_match(const std::string& password);
 
 	zxcppvbn(const zxcppvbn&) /* = delete */;
 	zxcppvbn& operator=(const zxcppvbn&) /* = delete */;

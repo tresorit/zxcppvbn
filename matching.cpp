@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <set>
 
 std::string zxcppvbn::to_lower(const std::string& password)
 {
@@ -68,3 +69,12 @@ std::map<char, std::vector<char>> zxcppvbn::relevent_l33t_subtable(const std::st
 	return filtered;
 }
 
+void zxcppvbn::enumerate_l33t_subs(std::map<char, std::vector<char>>& table)
+{
+}
+
+std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::l33t_match(const std::string& password)
+{
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> matches;
+	return matches;
+}

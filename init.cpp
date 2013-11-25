@@ -117,6 +117,7 @@ void zxcppvbn::build_dict_matchers()
 void zxcppvbn::build_matchers()
 {
 	matchers.insert(matchers.end(), dictionary_matchers.cbegin(), dictionary_matchers.cend());
+	matchers.push_back([this](const std::string& password) { return l33t_match(password); });
 }
 
 zxcppvbn::zxcppvbn()
