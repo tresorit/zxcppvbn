@@ -51,3 +51,20 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::dictionary_match(
 	return results;
 }
 
+std::map<char, std::vector<char>> zxcppvbn::relevent_l33t_subtable(const std::string& password)
+{
+	std::map<char, std::vector<char>> filtered;
+	for(auto& l : l33t_table) {
+		std::vector<char> relevent_subs;
+		for(auto& sub : l.second) {
+			if(password.find(sub) != std::string::npos) {
+				relevent_subs.push_back(sub);
+			}
+		}
+		if(!relevent_subs.empty()) {
+			filtered.insert(std::make_pair(l.first, relevent_subs));
+		}
+	}
+	return filtered;
+}
+

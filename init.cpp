@@ -83,6 +83,25 @@ bool zxcppvbn::build_graphs()
 	return true;
 }
 
+void zxcppvbn::build_l33t_table()
+{
+	auto append_l33t_table = [this](char orig, const std::string& subst) {
+		l33t_table.insert(std::make_pair(orig, std::vector<char>(subst.begin(), subst.end())));
+	};
+	append_l33t_table('a', "4@");
+	append_l33t_table('b', "8");
+	append_l33t_table('c', "({[<");
+	append_l33t_table('e', "3");
+	append_l33t_table('g', "69");
+	append_l33t_table('i', "1!|");
+	append_l33t_table('l', "1|7");
+	append_l33t_table('o', "0");
+	append_l33t_table('s', "$5");
+	append_l33t_table('t', "+7");
+	append_l33t_table('x', "%");
+	append_l33t_table('z', "2");
+}
+
 void zxcppvbn::build_dict_matchers()
 {
 	for(auto& dict : ranked_dictionaries) {
@@ -102,12 +121,9 @@ void zxcppvbn::build_matchers()
 
 zxcppvbn::zxcppvbn()
 {
-	if(!build_ranked_dicts()) {
-		return;
-	}
-	if(!build_graphs()) {
-		return;
-	}
+	build_ranked_dicts();
+	build_graphs();
+	build_l33t_table();
 
 	ranked_dictionaries.insert(std::make_pair("user_inputs", std::map<std::string, int>()));
 	build_dict_matchers();

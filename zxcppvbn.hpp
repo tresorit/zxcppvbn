@@ -51,6 +51,7 @@ private:
 
 	std::map<std::string, std::map<std::string, int>> ranked_dictionaries;
 	std::map<std::string, std::map<char, std::vector<std::string>>> graphs;
+	std::map<char, std::vector<char>> l33t_table;
 
 	std::vector<matcher_func> dictionary_matchers;
 	std::vector<matcher_func> matchers;
@@ -58,6 +59,7 @@ private:
 	size_t calc_decompressed_size(const uint8_t* comp_data, size_t comp_size);
 	bool build_ranked_dicts();
 	bool build_graphs();
+	void build_l33t_table();
 	void build_dict_matchers();
 	void build_matchers();
 
@@ -65,6 +67,8 @@ private:
 
 	std::vector<std::unique_ptr<match_result>> omnimatch(const std::string& password);
 	std::vector<std::unique_ptr<match_result>> dictionary_match(const std::string& password, const std::string& dictionary);
+
+	std::map<char, std::vector<char>> relevent_l33t_subtable(const std::string& password);
 
 	zxcppvbn(const zxcppvbn&) /* = delete */;
 	zxcppvbn& operator=(const zxcppvbn&) /* = delete */;
