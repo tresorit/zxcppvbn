@@ -200,9 +200,17 @@ zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::ve
 	}
 
 	// calculate result
+	std::vector<match_result> matches = omnimatch(password);
+	double entropy = minimum_entropy_match_sequence(password, matches);
+	uint64_t crack_seconds = entropy_to_crack_time(entropy);
+
+	// assemble result
 	result res;
-	res.matches = omnimatch(password);
+	res.matches = matches;
+	res.entropy = entropy;
+	res.crack_time = std::chrono::seconds(crack_seconds);
+	res.crack_time_display = calc_display_time(crack_seconds);
+	res.score = crack_time_to_score(crack_seconds);
 	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
-	res.crack_time_display = calc_display_time(res.crack_time.count());
 	return res;
 }

@@ -55,6 +55,8 @@ public:
 
 	// Password estimation result
 	struct result {
+		std::string password;
+		double entropy;
 		std::chrono::seconds crack_time;
 		std::string crack_time_display;
 		int score;
@@ -121,9 +123,16 @@ private:
 
 	// Utility functions
 	uint64_t nCk(uint64_t n, uint64_t k);
-	double lg(double n);
-	size_t calc_bruteforce_cardinality(const std::string& password);
+	// Complex scoring
+	double minimum_entropy_match_sequence(const std::string& password, std::vector<match_result>& matches);
+	// Crack time constants and functions
+	static const double single_guess;
+	static const double num_attackers;
+	uint64_t entropy_to_crack_time(double entropy);
+	int crack_time_to_score(uint64_t seconds);
 	std::string calc_display_time(uint64_t seconds);
+	// Entropy functions
+	size_t calc_bruteforce_cardinality(const std::string& password);
 
 public:
 	zxcppvbn();
