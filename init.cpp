@@ -75,21 +75,21 @@ bool zxcppvbn::build_graphs()
 		std::string k(&raw[kbegin], &raw[i++]);
 
 		// Keyboard neighbor maps
-		std::map<char, std::vector<std::vector<char>>> m;
+		std::map<char, std::vector<std::string>> m;
 		while (raw[i] != 1) {
 			// Key
 			char c = raw[i++];
 			i++;
 
 			// Neighbor list
-			std::vector<std::vector<char>> l;
+			std::vector<std::string> l;
 			while (raw[i] != 2) {
 				// Neighbor characters
 				size_t wbegin = i;
 				while (raw[i] != 3) {
 					i++;
 				}
-				std::vector<char> w(&raw[wbegin], &raw[i++]);
+				std::string w(&raw[wbegin], &raw[i++]);
 
 				l.push_back(w);
 			}

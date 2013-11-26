@@ -61,7 +61,7 @@ private:
 
 	// Databases
 	std::map<std::string /* dictionary name */, std::map<std::string /* word */, int /* rank */>> ranked_dictionaries;
-	std::map<std::string /* keyboard name */, std::map<char /* key */, std::vector<std::vector<char /* key */>> /* neigbors */>> graphs;
+	std::map<std::string /* keyboard name */, std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>> graphs;
 	std::map<char /* original */, std::vector<char /* l33t */>> l33t_table;
 
 	// Matcher function prototype
@@ -97,7 +97,7 @@ private:
 	std::vector<std::map<char, char>> enumerate_l33t_subs(const std::map<char, std::vector<char>>& table);
 	std::vector<match_result> l33t_match(const std::string& password);
 	// Spatial matching
-	std::vector<match_result> spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::vector<char>>>& graph);
+	std::vector<match_result> spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::string>>& graph);
 	std::vector<match_result> spatial_match(const std::string& password);
 
 public:

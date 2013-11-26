@@ -221,10 +221,78 @@ std::vector<zxcppvbn::match_result> zxcppvbn::l33t_match(const std::string& pass
 // Spatial matching
 //////////////////////////////////////////////////////////////////////////
 
-std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::vector<char>>>& graph)
+std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char /* key */, std::vector<std::string /* keys */> /* neighbors */>& graph)
 {
-	std::vector<zxcppvbn::match_result> result;
-	return result;
+	std::vector<zxcppvbn::match_result> results;
+
+	size_t password_size = password.size();
+	for (size_t i = 0; i < password_size - 1; /* empty */) {
+		size_t j = i + 1;
+		int last_direction = -1;
+		size_t turns = 0;
+		size_t shifted_count = 0;
+
+		while (true) {
+			char prev_char = password[j - 1];
+			bool found = false;
+			int found_direction = -1;
+			int cur_direction = -1;
+
+			std::vector<std::string /* keys */> adjacents;
+			auto it = graph.find(prev_char);
+			if (it != graph.end()) {
+				adjacents = it->second;
+			}
+
+			// Consider growing pattern by one character if j hasn't gone over the edge.
+			if (j < password_size) {
+				char cur_char = password[j];
+				for (auto& adj : adjacents) {
+					cur_direction += 1;
+					size_t pos = adj.find(cur_char);
+					if (pos != std::string::npos) {
+						found = true;
+						found_direction = cur_direction;
+						if (pos == 1) {
+							// Index 1 in the adjacency means the key is shifted, 0 means unshifted : A vs a, % vs 5, etc.
+							// for example, 'q' is adjacent to the entry '2@'. @ is shifted w / index 1, 2 is unshifted.
+							shifted_count += 1;
+						}
+						if (last_direction != found_direction) {
+							// Adding a turn is correct even in the initial case when last_direction is null :
+							// every spatial pattern starts with a turn.
+							turns += 1;
+							last_direction = found_direction;
+						}
+						break;
+					}
+				}
+			}
+
+			if (found) {
+				// If the current pattern continued, extend j and try to grow again
+				j += 1;
+			} else {
+				// Otherwise push the pattern discovered so far, if any...
+				if (j - i > 2) {
+					// Don't consider chains of length 1 or 2.
+					match_result result;
+					result.pattern = match_pattern::SPATIAL;
+					result.i = i;
+					result.j = j - 1;
+					result.token = substr(password, i, j - 1);
+					result.graph = graph_name;
+					result.turns = turns;
+					result.shifted_count = shifted_count;
+					results.push_back(result);
+				}
+				// ...and then start a new search for the rest of the password.
+				i = j;
+				break;
+			}
+		}
+	}
+	return results;
 }
 
 std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& password)
