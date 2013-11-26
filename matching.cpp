@@ -4,47 +4,87 @@
 #include <cctype>
 #include <set>
 
+//////////////////////////////////////////////////////////////////////////
+// Utility functions
+//////////////////////////////////////////////////////////////////////////
+
+// Convert an ASCII string to lowercase
 std::string zxcppvbn::to_lower(const std::string& password)
 {
-	std::string data = password; 
+	std::string data = password;
 	std::transform(data.begin(), data.end(), data.begin(), ::tolower);
 	return data;
 }
 
-std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::omnimatch(const std::string& password)
+// Replace characters in an ASCII string
+std::string zxcppvbn::translate(const std::string& password, const std::map<char, char>& chr_map)
 {
-	std::vector<std::unique_ptr<match_result>> results;
-	for(auto& matcher : matchers) {
-		std::vector<std::unique_ptr<match_result>> matches = matcher(password);
-		for(auto& match : matches) {
-			results.push_back(std::move(match));
+	std::string data = password;
+	std::transform(data.begin(), data.end(), data.begin(), [&chr_map](char chr) {
+		auto it = chr_map.find(chr);
+		if (it == chr_map.end()) {
+			return chr;
+		} else {
+			return it->second;
 		}
+	});
+
+	return data;
+}
+
+// Return substring from ith to jth character
+std::string zxcppvbn::substr(const std::string& password, size_t i, size_t j)
+{
+	return password.substr(i, j - i + 1);
+}
+
+//////////////////////////////////////////////////////////////////////////
+/// Complex matching
+//////////////////////////////////////////////////////////////////////////
+
+// Combine match results
+std::vector<zxcppvbn::match_result> zxcppvbn::omnimatch(const std::string& password)
+{
+	std::vector<match_result> results;
+	// Invoke all matchers and collect results
+	for (auto& matcher : matchers) {
+		std::vector<match_result> matches = matcher(password);
+		results.insert(results.end(), matches.begin(), matches.end());
 	}
-	std::sort(results.begin(), results.end(), [](const std::unique_ptr<match_result>& match1, const std::unique_ptr<match_result>& match2) {
-		return (match1->i < match2->i) || ((match1->i == match2->i) && (match1->j < match2->j));
+	// Sort match results according to their position in the input
+	std::sort(results.begin(), results.end(), [](const match_result & match1, const match_result & match2) {
+		return (match1.i < match2.i) || ((match1.i == match2.i) && (match1.j < match2.j));
 	});
 	return results;
 }
 
-std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::dictionary_match(const std::string& password, const std::string& dictionary)
+//////////////////////////////////////////////////////////////////////////
+// Dictionary matching
+//////////////////////////////////////////////////////////////////////////
+
+// Find matches in known dictionary
+std::vector<zxcppvbn::match_result> zxcppvbn::dictionary_match(const std::string& password, const std::string& dictionary)
 {
 	const std::map<std::string, int>& ranked_dict = ranked_dictionaries.at(dictionary);
-	std::vector<std::unique_ptr<match_result>> results;
+	std::vector<match_result> results;
 	size_t len = password.length();
 	std::string password_lower = to_lower(password);
-	for(size_t i = 0; i < len; i++) {
-		for(size_t j = i; j < len; j++) {
-			std::string password_part = password_lower.substr(i, j - i + 1);
+	// Try to match any substring of the password
+	for (size_t i /* substring start index */ = 0; i < len; i++) {
+		for (size_t j /* substring end index */ = i; j < len; j++) {
+			// Find a matching word in the dictionary
+			std::string password_part = substr(password_lower, i, j);
 			auto it = ranked_dict.find(password_part);
-			if(it != ranked_dict.end()) {
-				std::unique_ptr<dictionary_match_result> result(new dictionary_match_result());
-				result->pattern = match_pattern::DICTIONARY;
-				result->i = i;
-				result->j = j;
-				result->token = password_part;
-				result->dictionary_name = dictionary;
-				result->matched_word = it->first;
-				result->rank = it->second;
+			if (it != ranked_dict.end()) {
+				// If found a matching word, add a match result
+				match_result result;
+				result.pattern = match_pattern::DICTIONARY;
+				result.i = i;
+				result.j = j;
+				result.token = password_part;
+				result.dictionary_name = dictionary;
+				result.matched_word = it->first;
+				result.rank = it->second;
 				results.push_back(std::move(result));
 			}
 		}
@@ -52,29 +92,148 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::dictionary_match(
 	return results;
 }
 
+//////////////////////////////////////////////////////////////////////////
+// L33t matching
+//////////////////////////////////////////////////////////////////////////
+
+// Get a subtable of the l33t substitution table that contains only those substitutions that is in the password
 std::map<char, std::vector<char>> zxcppvbn::relevent_l33t_subtable(const std::string& password)
 {
-	std::map<char, std::vector<char>> filtered;
-	for(auto& l : l33t_table) {
-		std::vector<char> relevent_subs;
-		for(auto& sub : l.second) {
-			if(password.find(sub) != std::string::npos) {
+	std::map<char /* original */, std::vector<char /* l33t */>> filtered;
+	// For every possible original character in the l33t table
+	for (auto& l : l33t_table) {
+		// For this original -> l33t* substitutions, find those l33t characters that appear in the password
+		std::vector<char /* l33t */> relevent_subs;
+		for (auto& sub : l.second) {
+			if (password.find(sub) != std::string::npos) {
 				relevent_subs.push_back(sub);
 			}
 		}
-		if(!relevent_subs.empty()) {
+		// If there were at least one valid l33t character, then put this into the filtered results
+		if (!relevent_subs.empty()) {
 			filtered.insert(std::make_pair(l.first, relevent_subs));
 		}
 	}
 	return filtered;
 }
 
-void zxcppvbn::enumerate_l33t_subs(std::map<char, std::vector<char>>& table)
+// Calculate all possible inverse l33t substitution maps
+std::vector<std::map<char, char>> zxcppvbn::enumerate_l33t_subs(const std::map<char, std::vector<char>>& table)
 {
+	// First, we create the inverse of the original -> l33t* table to get a l33t -> original* mapping
+	std::map<char /* l33t */, std::vector<char /* original */>> inverse_map;
+	for (const auto& l : table) {
+		for (const auto& sub : l.second) {
+			inverse_map[sub].push_back(l.first);
+		}
+	}
+	// Convert table to an indexable form
+	std::vector<std::pair<char /* l33t */, std::vector<char /* original */>>> inverse_table(inverse_map.begin(), inverse_map.end());
+
+	std::vector<std::map<char /* l33t */, char /* original */>> sub_dicts;
+
+	// Try to find all permutations where each l33t character has only one original substitution (l33t -> original)*
+	std::vector<size_t /* index of original*/> choices(1, 0);       // Contain 1-based indexes in the inverse table -> which original character we choose out of the possible l33t->original* choices
+	while (!choices.empty()) {
+		size_t current = choices.size() - 1;
+
+		// Select next choice at this level
+		choices[current]++;
+
+		// If there are no more choices at this level
+		if (choices[current] > inverse_table[current].second.size()) {
+			// Go back one level
+			choices.pop_back();
+			continue;
+		}
+
+		// If we have a complete permutation
+		if (choices.size() == inverse_table.size()) {
+			// Copy this mapping to the results
+			std::map<char /* l33t */, char /* original */> permutation;
+			for (size_t i = 0; i < inverse_table.size(); i++) {
+				permutation[inverse_table[i].first] = inverse_table[i].second[choices[i] - 1];
+			}
+			sub_dicts.push_back(permutation);
+		}
+
+		// If there is more choices at this level
+		if (choices[current] <= inverse_table[current].second.size()) {
+			// If possible, go to the next level, before continuing this level
+			if (choices.size() < inverse_table.size()) {
+				choices.push_back(0);
+			}
+		}
+	}
+
+	return sub_dicts;
 }
 
-std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::l33t_match(const std::string& password)
+// Find all matches that can be found using possible l33t substitutions
+std::vector<zxcppvbn::match_result> zxcppvbn::l33t_match(const std::string& password)
 {
-	std::vector<std::unique_ptr<zxcppvbn::match_result>> matches;
+	std::vector<zxcppvbn::match_result> matches;
+
+	std::map<char /* orig */, std::vector<char /* l33t */>> relevent = relevent_l33t_subtable(password);
+	if (relevent.empty()) {
+		return matches;
+	}
+
+	std::vector<std::map<char /* l33t */, char /* orig */>> substitutions = enumerate_l33t_subs(relevent);
+	// For each possible l33t->original substitutions
+	for (auto& sub : substitutions) {
+		std::string subbed_password = translate(password, sub);
+		// Call each dictionary matcher
+		for (auto& matcher : dictionary_matchers) {
+			std::vector<match_result> results = matcher(subbed_password);
+			// Enumerate match results
+			for (auto& match : results) {
+				std::string token = substr(password, match.i, match.j);
+				// Skip match that not used l33t substitution at all
+				if (token == match.matched_word) {
+					continue;
+				}
+
+				// Modify result
+				match.pattern = match_pattern::L33T;
+				match.token = token;
+
+				// Select actual substitutions in use
+				for (auto& it : sub) {
+					if (token.find(it.first) != std::string::npos) {
+						match.sub.insert(it);
+						if (!match.sub_display.empty()) {
+							match.sub_display.append(", ");
+						}
+						match.sub_display.append(1, it.first).append(" -> ").append(1, it.second);
+					}
+				}
+
+				matches.push_back(match);
+			}
+		}
+	}
+
 	return matches;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Spatial matching
+//////////////////////////////////////////////////////////////////////////
+
+std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::vector<char>>>& graph)
+{
+	std::vector<zxcppvbn::match_result> result;
+	return result;
+}
+
+std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& password)
+{
+	std::vector<match_result> results;
+	// Invoke matcher for all keyboard graphs and collect results
+	for (auto& graph : graphs) {
+		std::vector<match_result> matches = spatial_match_helper(password, graph.first, graph.second);
+		results.insert(results.end(), matches.begin(), matches.end());
+	}
+	return results;
 }

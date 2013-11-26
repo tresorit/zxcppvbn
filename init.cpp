@@ -2,36 +2,46 @@
 
 #include "tools/tinf/tinf.h"
 
+// Read compressed size from the end of the gzipped data
 size_t zxcppvbn::calc_decompressed_size(const uint8_t* comp_data, size_t comp_size)
 {
 	size_t dsize = comp_data[comp_size - 1];
-    dsize = 256 * dsize + comp_data[comp_size - 2];
-    dsize = 256 * dsize + comp_data[comp_size - 3];
-    dsize = 256 * dsize + comp_data[comp_size - 4];
+	dsize = 256 * dsize + comp_data[comp_size - 2];
+	dsize = 256 * dsize + comp_data[comp_size - 3];
+	dsize = 256 * dsize + comp_data[comp_size - 4];
 	return dsize;
 }
 
+// Decompress and read dictionaries
 bool zxcppvbn::build_ranked_dicts()
 {
+	// Decompress from byte array
 	tinf_init();
-
 	size_t dsize = calc_decompressed_size(frequency_lists, frequency_lists_size);
 	std::unique_ptr<uint8_t[]> raw(new uint8_t[dsize]);
-	if(tinf_gzip_uncompress(raw.get(), &dsize, frequency_lists, frequency_lists_size) != TINF_OK) {
+	if (tinf_gzip_uncompress(raw.get(), &dsize, frequency_lists, frequency_lists_size) != TINF_OK) {
 		return false;
 	}
 
+	// Read simple format (file end - 0, dictionary end - 1, dictionary name and value separator - 2)
 	size_t i = 0;
-	while(raw[i] != 0) {
+	while (raw[i] != 0) {
+		// Dictionary name
 		size_t dbegin = i;
-		while(raw[i] != 2) i++;
+		while (raw[i] != 2) {
+			i++;
+		}
 		std::string d(&raw[dbegin], &raw[i++]);
 
+		// Dictionary words
 		int rank = 1;
 		std::map<std::string, int> l;
-		while(raw[i] != 1) {
+		while (raw[i] != 1) {
+			// Word
 			size_t wbegin = i;
-			while(raw[i] != 2) i++;
+			while (raw[i] != 2) {
+				i++;
+			}
 			std::string w(&raw[wbegin], &raw[i++]);
 
 			l.insert(std::make_pair(w, rank++));
@@ -43,32 +53,43 @@ bool zxcppvbn::build_ranked_dicts()
 	return true;
 }
 
+// Decompress and read keyboard adjacency graphs
 bool zxcppvbn::build_graphs()
 {
+	// Decompress from byte array
 	tinf_init();
-
 	size_t dsize = calc_decompressed_size(adjacency_graphs, adjacency_graphs_size);
 	std::unique_ptr<uint8_t[]> raw(new uint8_t[dsize]);
-	if(tinf_gzip_uncompress(raw.get(), &dsize, adjacency_graphs, adjacency_graphs_size) != TINF_OK) {
+	if (tinf_gzip_uncompress(raw.get(), &dsize, adjacency_graphs, adjacency_graphs_size) != TINF_OK) {
 		return false;
 	}
 
+	// Read simple format (file end - 0, keyboard end - 1, keyboard name and keys separator - 2, key and neighbors separator - 3)
 	size_t i = 0;
-	while(raw[i] != 0) {
+	while (raw[i] != 0) {
+		// Keyboard name
 		size_t kbegin = i;
-		while(raw[i] != 2) i++;
+		while (raw[i] != 2) {
+			i++;
+		}
 		std::string k(&raw[kbegin], &raw[i++]);
 
-		std::map<char, std::vector<std::string>> m;
-		while(raw[i] != 1) {
+		// Keyboard neighbor maps
+		std::map<char, std::vector<std::vector<char>>> m;
+		while (raw[i] != 1) {
+			// Key
 			char c = raw[i++];
 			i++;
 
-			std::vector<std::string> l;
-			while(raw[i] != 2) {
+			// Neighbor list
+			std::vector<std::vector<char>> l;
+			while (raw[i] != 2) {
+				// Neighbor characters
 				size_t wbegin = i;
-				while(raw[i] != 3) i++;
-				std::string w(&raw[wbegin], &raw[i++]);
+				while (raw[i] != 3) {
+					i++;
+				}
+				std::vector<char> w(&raw[wbegin], &raw[i++]);
 
 				l.push_back(w);
 			}
@@ -83,9 +104,10 @@ bool zxcppvbn::build_graphs()
 	return true;
 }
 
+// Initialize forward l33t substitution table (so small it does not worth compressing)
 void zxcppvbn::build_l33t_table()
 {
-	auto append_l33t_table = [this](char orig, const std::string& subst) {
+	auto append_l33t_table = [this](char orig, const std::string & subst) {
 		l33t_table.insert(std::make_pair(orig, std::vector<char>(subst.begin(), subst.end())));
 	};
 	append_l33t_table('a', "4@");
@@ -102,11 +124,12 @@ void zxcppvbn::build_l33t_table()
 	append_l33t_table('z', "2");
 }
 
+// Create dictionary matcher functions for each dictionaries
 void zxcppvbn::build_dict_matchers()
 {
-	for(auto& dict : ranked_dictionaries) {
+	for (auto& dict : ranked_dictionaries) {
 		std::string dict_name = dict.first;
-		matcher_func dict_matcher = [this, dict_name](const std::string& password) {
+		matcher_func dict_matcher = [this, dict_name](const std::string & password) {
 			return dictionary_match(password, dict_name);
 		};
 
@@ -114,34 +137,47 @@ void zxcppvbn::build_dict_matchers()
 	}
 }
 
+// Create general matcher functions
 void zxcppvbn::build_matchers()
 {
-	matchers.insert(matchers.end(), dictionary_matchers.cbegin(), dictionary_matchers.cend());
-	matchers.push_back([this](const std::string& password) { return l33t_match(password); });
+	// Add dictionary matchers to general matchers
+	matchers.insert(matchers.end(), dictionary_matchers.begin(), dictionary_matchers.end());
+	matchers.push_back([this](const std::string & password) {
+		return l33t_match(password);
+	});
+	matchers.push_back([this](const std::string & password) {
+		return spatial_match(password);
+	});
 }
 
+// Initialize the class
 zxcppvbn::zxcppvbn()
 {
+	// Initialize databases
 	build_ranked_dicts();
+	ranked_dictionaries.insert(std::make_pair("user_inputs", std::map<std::string, int>()));
 	build_graphs();
 	build_l33t_table();
 
-	ranked_dictionaries.insert(std::make_pair("user_inputs", std::map<std::string, int>()));
+	// Initialize matchers
 	build_dict_matchers();
 	build_matchers();
 }
 
-std::unique_ptr<zxcppvbn::result> zxcppvbn::operator()(const std::string& password, const std::vector<std::string>& user_inputs /* = std::vector<std::string>() */)
+zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::vector<std::string>& user_inputs /* = std::vector<std::string>() */)
 {
 	std::chrono::system_clock::time_point start = std::chrono::system_clock::now();
+
+	// Initialize user input dictionary (we assume that rank is proportional to the position in the array)
 	std::map<std::string, int>& ranked_user_inputs_dict = ranked_dictionaries.at("user_inputs");
 	ranked_user_inputs_dict.clear();
-	for(size_t i = 0; i < user_inputs.size(); i++) {
+	for (size_t i = 0; i < user_inputs.size(); i++) {
 		ranked_user_inputs_dict[to_lower(user_inputs[i])] = i + 1;
 	}
 
-	std::unique_ptr<result> res(new result());
-	res->matches = omnimatch(password);
-	res->calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+	// calculate result
+	result res;
+	res.matches = omnimatch(password);
+	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
 	return res;
 }

@@ -3,5 +3,7 @@
 int main()
 {
 	zxcppvbn zxcvbn;
-	std::unique_ptr<zxcppvbn::result> result = zxcvbn("HelloWorld");
+	//zxcppvbn::result result = zxcvbn("0123456789({[<!|$+%@");
+	//zxcppvbn::result result = zxcvbn("H3ll0");
+	zxcppvbn::result result = zxcvbn("qwer4321");
 }
