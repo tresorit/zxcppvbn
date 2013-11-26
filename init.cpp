@@ -133,6 +133,10 @@ void zxcppvbn::build_sequences()
 		}
 		sequences.insert(std::make_pair(name, sequence));
 	};
+
+	append_sequences("lower", 'a', 'z');
+	append_sequences("upper", 'A', 'Z');
+	append_sequences("digit", '0', '9');
 }
 
 // Create dictionary matcher functions for each dictionaries

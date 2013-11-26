@@ -313,11 +313,96 @@ std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& p
 std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& password)
 {
 	std::vector<match_result> results;
+
+	size_t password_size = password.size();
+	for (size_t i = 0; i < password_size; /* empty */) {
+		size_t j = i + 1;
+		while (true) {
+			if (j < password_size && password[j - 1] == password[j]) {
+				j += 1;
+			} else {
+				// Don't consider chains of length 1 or 2
+				if (j - i > 2) {
+					match_result result;
+					result.pattern = match_pattern::REPEAT;
+					result.i = i;
+					result.j = j - 1;
+					result.token = substr(password, i, j - 1);
+					result.repeated_char = password[i];
+					results.push_back(result);
+				}
+				break;
+			}
+		}
+		i = j;
+	}
+
 	return results;
 }
 
 std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& password)
 {
+	auto getDirection = [](size_t n, size_t m) -> int {
+		if (n < m)
+		{
+			return -(int)(m - n);
+		} else if (n > m)
+		{
+			return (int)(n - m);
+		} else
+		{
+			return 0;
+		}
+	};
+
 	std::vector<match_result> results;
+
+	size_t password_size = password.size();
+	for (size_t i = 0; i < password_size; /* empty */) {
+		size_t j = i + 1;
+
+		auto seq_candidate = sequences.begin();
+		int seq_direction = 0;
+		for (/* empty */; seq_candidate != sequences.end(); ++seq_candidate) {
+			size_t i_n = seq_candidate->second.find(password[i]);
+			size_t j_n = seq_candidate->second.find(password[j]);
+			if (i_n != std::string::npos && j_n != std::string::npos) {
+				int direction = getDirection(j_n, i_n);
+				if (direction == 1 || direction == -1) {
+					seq_direction = direction;
+					break;
+				}
+			}
+		}
+
+		if (seq_candidate != sequences.end()) {
+			while (true) {
+				char prev_char = password[j - 1];
+				char cur_char = password[j];
+				char prev_n = seq_candidate->second.find(prev_char);
+				char cur_n = seq_candidate->second.find(cur_char);
+
+				if (j < password_size && getDirection(cur_n, prev_n) == seq_direction) {
+					j += 1;
+				} else {
+					// Don't consider chains of length 1 or 2
+					if (j - i > 2) {
+						match_result result;
+						result.pattern = match_pattern::SEQUENCE;
+						result.i = i;
+						result.j = j - 1;
+						result.token = substr(password, i, j - 1);
+						result.sequence_name = seq_candidate->first;
+						result.sequence_space = seq_candidate->second.size();
+						result.ascending = (seq_direction == 1);
+						results.push_back(result);
+					}
+					break;
+				}
+			}
+		}
+		i = j;
+	}
+
 	return results;
 }
