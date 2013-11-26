@@ -314,10 +314,12 @@ std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& pa
 {
 	std::vector<match_result> results;
 
+	// Iterate over the whole password
 	size_t password_size = password.size();
 	for (size_t i = 0; i < password_size; /* empty */) {
 		size_t j = i + 1;
 		while (true) {
+			// Try to consume as much repeating characters as possible
 			if (j < password_size && password[j - 1] == password[j]) {
 				j += 1;
 			} else {
@@ -342,6 +344,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& pa
 
 std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& password)
 {
+	// Calculate direction from string positions
 	auto getDirection = [](size_t n, size_t m) -> int {
 		if (n < m)
 		{
@@ -357,10 +360,12 @@ std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& 
 
 	std::vector<match_result> results;
 
+	// Iterate over the whole password
 	size_t password_size = password.size();
 	for (size_t i = 0; i < password_size; /* empty */) {
 		size_t j = i + 1;
 
+		// Try to find a sequence that contains both endpoints of the given password slice
 		auto seq_candidate = sequences.begin();
 		int seq_direction = 0;
 		for (/* empty */; seq_candidate != sequences.end(); ++seq_candidate) {
@@ -369,13 +374,16 @@ std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& 
 			if (i_n != std::string::npos && j_n != std::string::npos) {
 				int direction = getDirection(j_n, i_n);
 				if (direction == 1 || direction == -1) {
+					// Remember desired direction
 					seq_direction = direction;
 					break;
 				}
 			}
 		}
 
+		// If we have a candidate sequence
 		if (seq_candidate != sequences.end()) {
+			// Try to consume as much characters as possible from the given sequence in the given direction
 			while (true) {
 				char prev_char = password[j - 1];
 				char cur_char = password[j];

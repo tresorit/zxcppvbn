@@ -124,6 +124,7 @@ void zxcppvbn::build_l33t_table()
 	append_l33t_table('z', "2");
 }
 
+// Initialize character sequence tables
 void zxcppvbn::build_sequences()
 {
 	auto append_sequences = [this](const std::string & name, char start, char end) {
@@ -137,6 +138,19 @@ void zxcppvbn::build_sequences()
 	append_sequences("lower", 'a', 'z');
 	append_sequences("upper", 'A', 'Z');
 	append_sequences("digit", '0', '9');
+}
+
+// Initialize character classes with their cardinalities
+void zxcppvbn::build_cardinalities()
+{
+	auto add_class_cardinality = [this](char start, char end, size_t size) {
+		char_classes_cardinality.push_back(std::tuple<char, char, size_t>(start, end, size == 0 ? end - start + 1 : size));
+	};
+	add_class_cardinality('0', '9', 0);
+	add_class_cardinality('a', 'z', 0);
+	add_class_cardinality('A', 'Z', 0);
+	add_class_cardinality('\0', '\x7f', 33);
+	add_class_cardinality('\0', '\xff', 100);
 }
 
 // Create dictionary matcher functions for each dictionaries
@@ -167,6 +181,7 @@ zxcppvbn::zxcppvbn()
 	build_graphs();
 	build_l33t_table();
 	build_sequences();
+	build_cardinalities();
 
 	// Initialize matchers
 	build_dict_matchers();
@@ -188,5 +203,6 @@ zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::ve
 	result res;
 	res.matches = omnimatch(password);
 	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
+	res.crack_time_display = calc_display_time(res.crack_time.count());
 	return res;
 }

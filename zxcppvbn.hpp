@@ -74,6 +74,7 @@ private:
 	std::map<std::string /* keyboard name */, std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>> graphs;
 	std::map<char /* original */, std::vector<char /* l33t */>> l33t_table;
 	std::map<std::string /* sequence name */, std::string /* sequence chars */> sequences;
+	std::vector<std::tuple<char /* min */, char /* max */, size_t /* cardinality */>> char_classes_cardinality;
 
 	// Matcher function prototype
 	typedef std::function<std::vector<match_result>(const std::string&)> matcher_func;
@@ -90,6 +91,7 @@ private:
 	bool build_graphs();
 	void build_l33t_table();
 	void build_sequences();
+	void build_cardinalities();
 	// Matcher creation
 	void build_dict_matchers();
 	void build_matchers();
@@ -114,6 +116,14 @@ private:
 	// Repeats and sequences matching
 	std::vector<match_result> repeat_match(const std::string& password);
 	std::vector<match_result> sequence_match(const std::string& password);
+
+	// Scoring functions (scoring.cpp)
+
+	// Utility functions
+	uint64_t nCk(uint64_t n, uint64_t k);
+	double lg(double n);
+	size_t calc_bruteforce_cardinality(const std::string& password);
+	std::string calc_display_time(uint64_t seconds);
 
 public:
 	zxcppvbn();

@@ -117,6 +117,7 @@
     <ClCompile Include="frequency_lists.cpp" />
     <ClCompile Include="init.cpp" />
     <ClCompile Include="matching.cpp" />
+    <ClCompile Include="scoring.cpp" />
     <ClCompile Include="test\main.cpp" />
     <ClCompile Include="tools\tinf\adler32.c" />
     <ClCompile Include="tools\tinf\crc32.c" />
