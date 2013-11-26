@@ -124,16 +124,22 @@ void zxcppvbn::build_l33t_table()
 	append_l33t_table('z', "2");
 }
 
+void zxcppvbn::build_sequences()
+{
+	auto append_sequences = [this](const std::string & name, char start, char end) {
+		std::string sequence(end - start + 1, '\0');
+		for (char c = start, i = 0; c <= end; c++, i++) {
+			sequence[i] = c;
+		}
+		sequences.insert(std::make_pair(name, sequence));
+	};
+}
+
 // Create dictionary matcher functions for each dictionaries
 void zxcppvbn::build_dict_matchers()
 {
 	for (auto& dict : ranked_dictionaries) {
-		std::string dict_name = dict.first;
-		matcher_func dict_matcher = [this, dict_name](const std::string & password) {
-			return dictionary_match(password, dict_name);
-		};
-
-		dictionary_matchers.push_back(dict_matcher);
+		dictionary_matchers.push_back(std::bind(&zxcppvbn::dictionary_match, this, std::placeholders::_1, dict.first));
 	}
 }
 
@@ -142,12 +148,10 @@ void zxcppvbn::build_matchers()
 {
 	// Add dictionary matchers to general matchers
 	matchers.insert(matchers.end(), dictionary_matchers.begin(), dictionary_matchers.end());
-	matchers.push_back([this](const std::string & password) {
-		return l33t_match(password);
-	});
-	matchers.push_back([this](const std::string & password) {
-		return spatial_match(password);
-	});
+	matchers.push_back(std::bind(&zxcppvbn::l33t_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::spatial_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::repeat_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::sequence_match, this, std::placeholders::_1));
 }
 
 // Initialize the class
@@ -158,6 +162,7 @@ zxcppvbn::zxcppvbn()
 	ranked_dictionaries.insert(std::make_pair("user_inputs", std::map<std::string, int>()));
 	build_graphs();
 	build_l33t_table();
+	build_sequences();
 
 	// Initialize matchers
 	build_dict_matchers();

@@ -18,7 +18,9 @@ public:
 	{
 		DICTIONARY,
 		L33T,
-		SPATIAL
+		SPATIAL,
+		REPEAT,
+		SEQUENCE
 	};
 
 	// Submatch
@@ -41,6 +43,14 @@ public:
 		std::string graph;
 		size_t turns;
 		size_t shifted_count;
+
+		// REPEAT
+		char repeated_char;
+
+		// SEQUENCE
+		std::string sequence_name;
+		size_t sequence_space;
+		bool ascending;
 	};
 
 	// Password estimation result
@@ -63,6 +73,7 @@ private:
 	std::map<std::string /* dictionary name */, std::map<std::string /* word */, int /* rank */>> ranked_dictionaries;
 	std::map<std::string /* keyboard name */, std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>> graphs;
 	std::map<char /* original */, std::vector<char /* l33t */>> l33t_table;
+	std::map<std::string /* sequence name */, std::string /* sequence chars */> sequences;
 
 	// Matcher function prototype
 	typedef std::function<std::vector<match_result>(const std::string&)> matcher_func;
@@ -78,6 +89,7 @@ private:
 	bool build_ranked_dicts();
 	bool build_graphs();
 	void build_l33t_table();
+	void build_sequences();
 	// Matcher creation
 	void build_dict_matchers();
 	void build_matchers();
@@ -99,6 +111,9 @@ private:
 	// Spatial matching
 	std::vector<match_result> spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::string>>& graph);
 	std::vector<match_result> spatial_match(const std::string& password);
+	// Repeats and sequences matching
+	std::vector<match_result> repeat_match(const std::string& password);
+	std::vector<match_result> sequence_match(const std::string& password);
 
 public:
 	zxcppvbn();

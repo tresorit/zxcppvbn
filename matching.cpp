@@ -305,3 +305,19 @@ std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& p
 	}
 	return results;
 }
+
+//////////////////////////////////////////////////////////////////////////
+// Repeats and sequences matching
+//////////////////////////////////////////////////////////////////////////
+
+std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& password)
+{
+	std::vector<match_result> results;
+	return results;
+}
+
+std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& password)
+{
+	std::vector<match_result> results;
+	return results;
+}
