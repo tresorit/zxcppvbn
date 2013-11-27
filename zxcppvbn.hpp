@@ -24,7 +24,8 @@ public:
 		REPEAT,
 		SEQUENCE,
 		DIGITS,
-		YEAR
+		YEAR,
+		BRUTEFORCE
 	};
 
 	// Submatch
@@ -59,6 +60,9 @@ public:
 		std::string sequence_name;
 		size_t sequence_space;
 		bool ascending;
+
+		// BRUTEFORCE
+		size_t cardinality;
 
 		match_result();
 	};
@@ -148,7 +152,7 @@ private:
 	uint64_t nCk(uint64_t n, uint64_t k);
 	size_t calc_bruteforce_cardinality(const std::string& password);
 	// Complex scoring
-	result minimum_entropy_match_sequence(const std::string& password, const std::vector<match_result>& matches);
+	result minimum_entropy_match_sequence(const std::string& password, std::vector<match_result>& matches);
 	// Crack time constants and functions
 	static const double single_guess;
 	static const double num_attackers;
