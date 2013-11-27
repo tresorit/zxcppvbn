@@ -2,6 +2,8 @@
 
 #include "tools/tinf/tinf.h"
 
+#include <numeric>
+
 // Init to empty
 zxcppvbn::match_result::match_result()
 	: pattern(match_pattern::UNKNOWN), i(0), j(0), token(), entropy(0.0), dictionary_name(), matched_word(), rank(0),
@@ -117,6 +119,47 @@ bool zxcppvbn::build_graphs()
 	return true;
 }
 
+// Calculate keyboard statistics
+void zxcppvbn::build_graph_stats()
+{
+	// Calculate average number of neighboring characters
+	auto calc_average_degree = [](const std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>& graph) -> double {
+		double average = 0;
+		for (auto& key : graph)
+		{
+			average += std::accumulate(key.second.begin(), key.second.end(), 0.0, [](double a, const std::string & s) -> double { return a + (double)s.size(); });
+		}
+		return average / (double)graph.size();
+	};
+	// Calculate number of keys
+	auto calc_starting_positions = [](const std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>& graph) -> double {
+		return (double)graph.size();
+	};
+
+	// Calculate stats
+	for (auto& graph : graphs) {
+		// 1- alphanumeric, 2 - keypad
+		uint8_t type = (graph.first.find("keypad") == std::string::npos) ? 1 : 2;
+		double degree = calc_average_degree(graph.second);
+		double start = calc_starting_positions(graph.second);
+
+		// Update stats for the given type
+		auto it = graph_stats.find(type);
+		if (it == graph_stats.end()) {
+			graph_stats.insert(std::make_pair(type, std::tuple<std::vector<std::string>, double, double>(std::vector<std::string>(1, graph.first), degree, start)));
+		} else {
+			std::vector<std::string>& k = std::get<0>(it->second);
+			double& d = std::get<1>(it->second);
+			double& s = std::get<2>(it->second);
+
+			double n = (double)k.size();
+			k.push_back(graph.first);
+			d = (d * n + degree) / (n + 1);
+			s = (s * n + start) / (n + 1);
+		}
+	}
+}
+
 // Initialize forward l33t substitution table (so small it does not worth compressing)
 void zxcppvbn::build_l33t_table()
 {
@@ -190,6 +233,7 @@ void zxcppvbn::build_matchers()
 // Create entropy calculation functions
 void zxcppvbn::build_entropy_functions()
 {
+	entropy_functions.insert(std::make_pair(match_pattern::SPATIAL, std::bind(&zxcppvbn::spatial_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::REPEAT, std::bind(&zxcppvbn::repeat_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::DIGITS, std::bind(&zxcppvbn::digits_entropy, this, std::placeholders::_1)));
@@ -204,6 +248,7 @@ zxcppvbn::zxcppvbn()
 	build_ranked_dicts();
 	ranked_dictionaries.insert(std::make_pair("user_inputs", std::map<std::string, int>()));
 	build_graphs();
+	build_graph_stats();
 	build_l33t_table();
 	build_sequences();
 	build_cardinalities();

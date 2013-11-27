@@ -143,7 +143,7 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds)
 }
 
 //////////////////////////////////////////////////////////////////////////
-// Entropy functions
+// Entropy calculation constants and functions
 //////////////////////////////////////////////////////////////////////////
 
 // Calculate entropy of a given submatch
@@ -154,6 +154,50 @@ double zxcppvbn::calc_entropy(const match_result& match)
 		return match.entropy;
 	}
 	return entropy_functions[match.pattern](match);
+}
+
+// Calculate entropy of a neighboring keyboard keystroke sequence
+double zxcppvbn::spatial_entropy(const match_result& match)
+{
+	double s, d;
+
+	// Find matching stats
+	for (auto& stat : graph_stats) {
+		std::vector<std::string>& names = std::get<0>(stat.second);
+		auto it = std::find(names.begin(), names.end(), match.graph);
+		if (it != names.end()) {
+			s = std::get<2>(stat.second);
+			d = std::get<1>(stat.second);
+			break;
+		}
+	}
+
+	double possibilities = 0;
+	size_t L = match.token.length();
+	size_t t = match.turns;
+
+	// Estimate the number of possible patterns w/ length L or less with match.turns turns or less.
+	for (size_t i = 2; i <= L; i++) {
+		size_t possible_turns = std::min(t, i - 1);
+		for (size_t j = 1; j <= possible_turns; j++) {
+			possibilities += nCk(i - 1, j - 1) * s * pow(d, j);
+		}
+	}
+	double entropy = log2(possibilities);
+
+	// Add extra entropy for shifted keys. (% instead of 5, A instead of a.)
+	// Math is similar to extra entropy from uppercase letters in dictionary matches.
+	if (match.shifted_count > 0) {
+		size_t S = match.shifted_count;
+		size_t U = L - S;   // Unshifted count
+		size_t possible_shifts = std::min(S, U);
+		possibilities = 0;
+		for (size_t i = 0; i <= possible_shifts; i++) {
+			possibilities += nCk(S + U, i);
+		}
+		entropy += log2(possibilities);
+	}
+	return entropy;
 }
 
 // Calculate entropy of a repeat match

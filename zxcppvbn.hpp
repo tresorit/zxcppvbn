@@ -83,6 +83,7 @@ private:
 	// Databases
 	std::map<std::string /* dictionary name */, std::map<std::string /* word */, int /* rank */>> ranked_dictionaries;
 	std::map<std::string /* keyboard name */, std::map<char /* key */, std::vector<std::string /* keys */> /* neigbors */>> graphs;
+	std::map<uint8_t /* keyboard type */, std::tuple<std::vector<std::string> /* keyboard names */, double /* average degree */, double /* starting positions */>> graph_stats;
 	std::map<char /* original */, std::vector<char /* l33t */>> l33t_table;
 	std::map<std::string /* sequence name */, std::string /* sequence chars */> sequences;
 	std::vector<std::tuple<char /* min */, char /* max */, size_t /* cardinality */>> char_classes_cardinality;
@@ -102,6 +103,7 @@ private:
 	size_t calc_decompressed_size(const uint8_t* comp_data, size_t comp_size);
 	bool build_ranked_dicts();
 	bool build_graphs();
+	void build_graph_stats();
 	void build_l33t_table();
 	void build_sequences();
 	void build_cardinalities();
@@ -150,10 +152,14 @@ private:
 	uint64_t entropy_to_crack_time(double entropy);
 	int crack_time_to_score(uint64_t seconds);
 	std::string calc_display_time(uint64_t seconds);
-	// Entropy constants and functions
+	// Entropy calculation constants and functions
 	double calc_entropy(const match_result& match);
+	// Spatial entropy
+	double spatial_entropy(const match_result& match);
+	// Repeats and sequences entropy
 	double repeat_entropy(const match_result& match);
 	double sequence_entropy(const match_result& match);
+	// Digits, years and dates entropy
 	double digits_entropy(const match_result& match);
 	static const size_t num_years;
 	static const size_t num_months;
