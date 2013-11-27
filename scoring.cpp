@@ -147,17 +147,114 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds)
 //////////////////////////////////////////////////////////////////////////
 
 // Calculate entropy of a given submatch
-double zxcppvbn::calc_entropy(const match_result& match)
+double zxcppvbn::calc_entropy(match_result& match)
 {
-	// Don't calculate again, return already calculated value
-	if (match.entropy > 0.0) {
-		return match.entropy;
+	// Only calculate once
+	if (match.entropy <= 0.0) {
+		match.entropy = entropy_functions[match.pattern](match);
 	}
-	return entropy_functions[match.pattern](match);
+	return match.entropy;
+}
+
+// Calculate entropy of non-l33t dictionary word
+double zxcppvbn::dictionary_entropy(match_result& match)
+{
+	match.base_entropy = log2((double)match.rank);
+	match.uppercase_entropy = extra_uppercase_entropy(match);
+	return match.base_entropy + match.uppercase_entropy;
+}
+
+// Calculate extra entropy from uppercase letters
+double zxcppvbn::extra_uppercase_entropy(match_result& match)
+{
+	const std::string& word = match.token;
+	size_t len = word.size();
+	std::string& upper = sequences["upper"];
+	std::string& lower = sequences["lower"];
+
+	// Determine casing characteristics
+	bool firstUpper = false;
+	bool lastUpper = false;
+	size_t numNonUpper = 0;
+	size_t numNonLower = 0;
+	size_t numUpper = 0;
+	size_t numLower = 0;
+	for (size_t i = 0; i < len; i++) {
+		if (upper.find(word[i]) == std::string::npos) {
+			numNonUpper++;
+		} else {
+			if (i == 0) {
+				firstUpper = true;
+			}
+			if (i == len - 1) {
+				lastUpper = true;
+			}
+			numUpper++;
+		}
+		if (lower.find(word[i]) == std::string::npos) {
+			numNonLower++;
+		} else {
+			numLower++;
+		}
+	}
+
+	// All lower
+	if (numNonUpper == len) {
+		return 0;
+	}
+
+	// A capitalized word is the most common capitalization scheme,
+	// so it only doubles the search space(uncapitalized + capitalized) : 1 extra bit of entropy.
+	// Allcaps and end-capitalized are common enough too, underestimate as 1 extra bit to be safe.
+
+	// First upper or last upper
+	if ((firstUpper || lastUpper) && (numNonUpper == len - 1)) {
+		return 1;
+	}
+	// All upper
+	if (numNonLower == len) {
+		return 1;
+	}
+
+	// Otherwise calculate the number of ways to capitalize U + L uppercase + lowercase letters with U uppercase letters or less.
+	// Or, if there's more uppercase than lower (for e.g. PASSwORD), the number of ways to lowercase U+L letters with L lowercase letters or less.
+	uint64_t possibilities = 0;
+	for (size_t i = 0; i <= std::min(numUpper, numLower); i++) {
+		possibilities += nCk(numUpper + numLower, i);
+	}
+	return log2((double)possibilities);
+}
+
+// Calculate entropy of l33t-substituted dictionary word
+double zxcppvbn::l33t_entropy(match_result& match)
+{
+	match.l33t_entropy = extra_l33t_entropy(match);
+	return dictionary_entropy(match) + match.l33t_entropy;
+}
+
+// Calculate extra entropy caused by l33t substitutions
+double zxcppvbn::extra_l33t_entropy(match_result& match)
+{
+	uint64_t possibilities = 0;
+	for (auto& it : match.sub) {
+		size_t S = std::count(match.token.begin(), match.token.end(), it.second);
+		size_t U = std::count(match.token.begin(), match.token.end(), it.first);
+
+		for (size_t i = 0; i <= std::min(U, S); i++) {
+			possibilities += nCk(U + S, i);
+		}
+	}
+
+	// corner case: return 1 bit for single-letter subs, like 4pple -> apple, instead of 0.
+	if (possibilities < 2) {
+		return 1.0;
+	} else {
+		return log2((double)possibilities);
+	}
 }
 
 // Calculate entropy of a neighboring keyboard keystroke sequence
-double zxcppvbn::spatial_entropy(const match_result& match)
+double zxcppvbn::spatial_entropy(match_result& match)
 {
 	double s, d;
 
@@ -201,14 +298,14 @@ double zxcppvbn::spatial_entropy(const match_result& match)
 }
 
 // Calculate entropy of a repeat match
-double zxcppvbn::repeat_entropy(const match_result& match)
+double zxcppvbn::repeat_entropy(match_result& match)
 {
 	size_t cardinality = calc_bruteforce_cardinality(match.token);
 	return log2((double)(cardinality * match.token.length()));
 }
 
 // Calculate entropy of a sequence match
-double zxcppvbn::sequence_entropy(const match_result& match)
+double zxcppvbn::sequence_entropy(match_result& match)
 {
 	double base_entropy = 0;
 	char first_chr = match.token[0];
@@ -235,7 +332,7 @@ double zxcppvbn::sequence_entropy(const match_result& match)
 	return base_entropy + log2(match.token.length());
 }
 
-double zxcppvbn::digits_entropy(const match_result& match)
+double zxcppvbn::digits_entropy(match_result& match)
 {
 	return log2(pow(10.0, (double)match.token.length()));
 }
@@ -244,7 +341,7 @@ const size_t zxcppvbn::num_years = 119;
 const size_t zxcppvbn::num_months = 12;
 const size_t zxcppvbn::num_days = 31;
 
-double zxcppvbn::year_entropy(const match_result& match)
+double zxcppvbn::year_entropy(match_result& match)
 {
 	return log2((double)num_years);
 }

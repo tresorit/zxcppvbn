@@ -6,8 +6,12 @@
 
 // Init to empty
 zxcppvbn::match_result::match_result()
-	: pattern(match_pattern::UNKNOWN), i(0), j(0), token(), entropy(0.0), dictionary_name(), matched_word(), rank(0),
-	  sub(), sub_display(), graph(), turns(0), shifted_count(0), repeated_char('\0'), sequence_name(), sequence_space(0), ascending(false)
+	: pattern(match_pattern::UNKNOWN), i(0), j(0), token(), entropy(0.0),
+	  dictionary_name(), matched_word(), rank(0), base_entropy(0), uppercase_entropy(0),
+	  sub(), sub_display(), l33t_entropy(),
+	  graph(), turns(0), shifted_count(0),
+	  repeated_char('\0'),
+	  sequence_name(), sequence_space(0), ascending(false)
 {
 }
 
@@ -146,7 +150,7 @@ void zxcppvbn::build_graph_stats()
 		// Update stats for the given type
 		auto it = graph_stats.find(type);
 		if (it == graph_stats.end()) {
-			graph_stats.insert(std::make_pair(type, std::tuple<std::vector<std::string>, double, double>(std::vector<std::string>(1, graph.first), degree, start)));
+			graph_stats.insert(std::make_pair(type, std::make_tuple(std::vector<std::string>(1, graph.first), degree, start)));
 		} else {
 			std::vector<std::string>& k = std::get<0>(it->second);
 			double& d = std::get<1>(it->second);
@@ -233,6 +237,8 @@ void zxcppvbn::build_matchers()
 // Create entropy calculation functions
 void zxcppvbn::build_entropy_functions()
 {
+	entropy_functions.insert(std::make_pair(match_pattern::DICTIONARY, std::bind(&zxcppvbn::dictionary_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(match_pattern::L33T, std::bind(&zxcppvbn::l33t_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::SPATIAL, std::bind(&zxcppvbn::spatial_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::REPEAT, std::bind(&zxcppvbn::repeat_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));

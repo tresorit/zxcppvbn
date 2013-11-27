@@ -39,10 +39,13 @@ public:
 		std::string dictionary_name;
 		std::string matched_word;
 		int rank;
+		double base_entropy;
+		double uppercase_entropy;
 
 		// L33T
 		std::map<char, char> sub;
 		std::string sub_display;
+		double l33t_entropy;
 
 		// SPATIAL
 		std::string graph;
@@ -90,7 +93,7 @@ private:
 
 	// Function prototypes
 	typedef std::function<std::vector<match_result>(const std::string&)> matcher_func;
-	typedef std::function<double(const match_result&)> entropy_func;
+	typedef std::function<double(match_result&)> entropy_func;
 
 	// Function maps
 	std::vector<matcher_func> dictionary_matchers;
@@ -153,18 +156,24 @@ private:
 	int crack_time_to_score(uint64_t seconds);
 	std::string calc_display_time(uint64_t seconds);
 	// Entropy calculation constants and functions
-	double calc_entropy(const match_result& match);
+	double calc_entropy(match_result& match);
+	// Dictionary entropy
+	double dictionary_entropy(match_result& match);
+	double extra_uppercase_entropy(match_result& match);
+	// L33t entropy
+	double l33t_entropy(match_result& match);
+	double extra_l33t_entropy(match_result& match);
 	// Spatial entropy
-	double spatial_entropy(const match_result& match);
+	double spatial_entropy(match_result& match);
 	// Repeats and sequences entropy
-	double repeat_entropy(const match_result& match);
-	double sequence_entropy(const match_result& match);
+	double repeat_entropy(match_result& match);
+	double sequence_entropy(match_result& match);
 	// Digits, years and dates entropy
-	double digits_entropy(const match_result& match);
+	double digits_entropy(match_result& match);
 	static const size_t num_years;
 	static const size_t num_months;
 	static const size_t num_days;
-	double year_entropy(const match_result& match);
+	double year_entropy(match_result& match);
 
 public:
 	zxcppvbn();
