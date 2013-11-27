@@ -221,6 +221,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::l33t_match(const std::string& pass
 // Spatial matching
 //////////////////////////////////////////////////////////////////////////
 
+// Find sequences of neighboring keyboard characters for a given keyboard layout
 std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char /* key */, std::vector<std::string /* keys */> /* neighbors */>& graph)
 {
 	std::vector<zxcppvbn::match_result> results;
@@ -232,6 +233,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::st
 		size_t turns = 0;
 		size_t shifted_count = 0;
 
+		// Try to find a sequence
 		while (true) {
 			char prev_char = password[j - 1];
 			bool found = false;
@@ -295,6 +297,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match_helper(const std::st
 	return results;
 }
 
+// Find sequences of neighboring keyboard characters
 std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& password)
 {
 	std::vector<match_result> results;
@@ -310,6 +313,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::spatial_match(const std::string& p
 // Repeats and sequences matching
 //////////////////////////////////////////////////////////////////////////
 
+// Find repeating characters
 std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& password)
 {
 	std::vector<match_result> results;
@@ -342,6 +346,7 @@ std::vector<zxcppvbn::match_result> zxcppvbn::repeat_match(const std::string& pa
 	return results;
 }
 
+// Find character sequences
 std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& password)
 {
 	// Calculate direction from string positions
@@ -412,5 +417,55 @@ std::vector<zxcppvbn::match_result> zxcppvbn::sequence_match(const std::string& 
 		i = j;
 	}
 
+	return results;
+}
+
+//////////////////////////////////////////////////////////////////////////
+// Digits, years and dates matching
+//////////////////////////////////////////////////////////////////////////
+
+std::vector<std::pair<size_t, size_t>> zxcppvbn::findall(const std::string& password, const std::regex& rx)
+{
+	std::vector<std::pair<size_t, size_t>> matches;
+
+	std::sregex_iterator it(password.begin(), password.end(), rx);
+	std::sregex_iterator end;
+	while (it != end) {
+		size_t i = it->position();
+		size_t j = i + it->length() - 1;
+		matches.push_back(std::make_pair(i, j));
+	}
+	return matches;
+}
+
+const std::regex zxcppvbn::digits_rx("\\d{3,}");
+
+std::vector<zxcppvbn::match_result> zxcppvbn::digits_match(const std::string& password)
+{
+	std::vector<match_result> results;
+	for (auto& match : findall(password, digits_rx)) {
+		match_result result;
+		result.pattern = match_pattern::DIGITS;
+		result.i = match.first;
+		result.j = match.second;
+		result.token = substr(password, match.first, match.second);
+		results.push_back(result);
+	}
+	return results;
+}
+
+const std::regex zxcppvbn::year_rx("19\\d\\d|200\\d|201\\d");
+
+std::vector<zxcppvbn::match_result> zxcppvbn::year_match(const std::string& password)
+{
+	std::vector<match_result> results;
+	for (auto& match : findall(password, year_rx)) {
+		match_result result;
+		result.pattern = match_pattern::YEAR;
+		result.i = match.first;
+		result.j = match.second;
+		result.token = substr(password, match.first, match.second);
+		results.push_back(result);
+	}
 	return results;
 }

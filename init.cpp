@@ -2,6 +2,19 @@
 
 #include "tools/tinf/tinf.h"
 
+// Init to empty
+zxcppvbn::match_result::match_result()
+	: pattern(match_pattern::UNKNOWN), i(0), j(0), token(), entropy(0.0), dictionary_name(), matched_word(), rank(0),
+	  sub(), sub_display(), graph(), turns(0), shifted_count(0), repeated_char('\0'), sequence_name(), sequence_space(0), ascending(false)
+{
+}
+
+// Init to empty
+zxcppvbn::result::result()
+	: password(), entropy(0.0), crack_time(0), crack_time_display(), score(-1), matches(), calc_time(0)
+{
+}
+
 // Read compressed size from the end of the gzipped data
 size_t zxcppvbn::calc_decompressed_size(const uint8_t* comp_data, size_t comp_size)
 {
@@ -170,7 +183,19 @@ void zxcppvbn::build_matchers()
 	matchers.push_back(std::bind(&zxcppvbn::spatial_match, this, std::placeholders::_1));
 	matchers.push_back(std::bind(&zxcppvbn::repeat_match, this, std::placeholders::_1));
 	matchers.push_back(std::bind(&zxcppvbn::sequence_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::digits_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::year_match, this, std::placeholders::_1));
 }
+
+// Create entropy calculation functions
+void zxcppvbn::build_entropy_functions()
+{
+	entropy_functions.insert(std::make_pair(match_pattern::REPEAT, std::bind(&zxcppvbn::repeat_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(match_pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(match_pattern::DIGITS, std::bind(&zxcppvbn::digits_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(match_pattern::YEAR, std::bind(&zxcppvbn::year_entropy, this, std::placeholders::_1)));
+}
+
 
 // Initialize the class
 zxcppvbn::zxcppvbn()
@@ -186,6 +211,7 @@ zxcppvbn::zxcppvbn()
 	// Initialize matchers
 	build_dict_matchers();
 	build_matchers();
+	build_entropy_functions();
 }
 
 zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::vector<std::string>& user_inputs /* = std::vector<std::string>() */)
@@ -201,16 +227,7 @@ zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::ve
 
 	// calculate result
 	std::vector<match_result> matches = omnimatch(password);
-	double entropy = minimum_entropy_match_sequence(password, matches);
-	uint64_t crack_seconds = entropy_to_crack_time(entropy);
-
-	// assemble result
-	result res;
-	res.matches = matches;
-	res.entropy = entropy;
-	res.crack_time = std::chrono::seconds(crack_seconds);
-	res.crack_time_display = calc_display_time(crack_seconds);
-	res.score = crack_time_to_score(crack_seconds);
+	result res = minimum_entropy_match_sequence(password, matches);
 	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
 	return res;
 }

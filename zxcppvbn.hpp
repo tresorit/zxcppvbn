@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 #include <chrono>
+#include <regex>
 
 // Password estimation, implemented entirely in one class
 class zxcppvbn
@@ -16,11 +17,14 @@ public:
 	// Type of a specific submatch
 	enum class match_pattern
 	{
+		UNKNOWN,
 		DICTIONARY,
 		L33T,
 		SPATIAL,
 		REPEAT,
-		SEQUENCE
+		SEQUENCE,
+		DIGITS,
+		YEAR
 	};
 
 	// Submatch
@@ -29,6 +33,7 @@ public:
 		size_t i;
 		size_t j;
 		std::string token;
+		double entropy;
 
 		// DICTIONARY + L33T
 		std::string dictionary_name;
@@ -51,6 +56,8 @@ public:
 		std::string sequence_name;
 		size_t sequence_space;
 		bool ascending;
+
+		match_result();
 	};
 
 	// Password estimation result
@@ -62,6 +69,8 @@ public:
 		int score;
 		std::vector<match_result> matches;
 		std::chrono::milliseconds calc_time;
+
+		result();
 	};
 
 private:
@@ -78,12 +87,14 @@ private:
 	std::map<std::string /* sequence name */, std::string /* sequence chars */> sequences;
 	std::vector<std::tuple<char /* min */, char /* max */, size_t /* cardinality */>> char_classes_cardinality;
 
-	// Matcher function prototype
+	// Function prototypes
 	typedef std::function<std::vector<match_result>(const std::string&)> matcher_func;
+	typedef std::function<double(const match_result&)> entropy_func;
 
-	// Matcher functions
+	// Function maps
 	std::vector<matcher_func> dictionary_matchers;
 	std::vector<matcher_func> matchers;
+	std::map<match_pattern, entropy_func> entropy_functions;
 
 	// Initializer functions (init.cpp)
 
@@ -94,9 +105,10 @@ private:
 	void build_l33t_table();
 	void build_sequences();
 	void build_cardinalities();
-	// Matcher creation
+	// Function map creation
 	void build_dict_matchers();
 	void build_matchers();
+	void build_entropy_functions();
 
 	// Matching functions (matching.cpp)
 
@@ -118,21 +130,35 @@ private:
 	// Repeats and sequences matching
 	std::vector<match_result> repeat_match(const std::string& password);
 	std::vector<match_result> sequence_match(const std::string& password);
+	// Digits, years and dates matching
+	std::vector<std::pair<size_t, size_t>> findall(const std::string& password, const std::regex& rx);
+	static const std::regex digits_rx;
+	std::vector<match_result> digits_match(const std::string& password);
+	static const std::regex year_rx;
+	std::vector<match_result> year_match(const std::string& password);
 
 	// Scoring functions (scoring.cpp)
 
 	// Utility functions
 	uint64_t nCk(uint64_t n, uint64_t k);
+	size_t calc_bruteforce_cardinality(const std::string& password);
 	// Complex scoring
-	double minimum_entropy_match_sequence(const std::string& password, std::vector<match_result>& matches);
+	result minimum_entropy_match_sequence(const std::string& password, const std::vector<match_result>& matches);
 	// Crack time constants and functions
 	static const double single_guess;
 	static const double num_attackers;
 	uint64_t entropy_to_crack_time(double entropy);
 	int crack_time_to_score(uint64_t seconds);
 	std::string calc_display_time(uint64_t seconds);
-	// Entropy functions
-	size_t calc_bruteforce_cardinality(const std::string& password);
+	// Entropy constants and functions
+	double calc_entropy(const match_result& match);
+	double repeat_entropy(const match_result& match);
+	double sequence_entropy(const match_result& match);
+	double digits_entropy(const match_result& match);
+	static const size_t num_years;
+	static const size_t num_months;
+	static const size_t num_days;
+	double year_entropy(const match_result& match);
 
 public:
 	zxcppvbn();

@@ -21,13 +21,51 @@ uint64_t zxcppvbn::nCk(uint64_t n, uint64_t k)
 	return r;
 }
 
+// Sum the cardinalities of the various character classes present in the password
+size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password)
+{
+	size_t char_classes_count = char_classes_cardinality.size();
+	std::vector<bool> char_class_present(char_classes_count, false);
+
+	// Find which character classes present in the password
+	for (char ord : password) {
+		for (size_t i = 0; i < char_classes_count; i++) {
+			auto c = char_classes_cardinality[i];
+			if (std::get<0>(c) <= ord && ord <= std::get<1>(c)) {
+				char_class_present[i] = true;
+				break;
+			}
+		}
+	}
+
+	// Sum the cardinalities of those character classes
+	size_t c = 0;
+	for (size_t i = 0; i < char_classes_count; i++) {
+		if (char_class_present[i]) {
+			c += std::get<2>(char_classes_cardinality[i]);
+		}
+	}
+	return c;
+}
+
 //////////////////////////////////////////////////////////////////////////
 // Complex scoring
 //////////////////////////////////////////////////////////////////////////
 
-double zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<match_result>& matches)
+zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, const std::vector<match_result>& matches)
 {
-	return 2.0;
+	double min_entropy = 2.0;
+	uint64_t crack_seconds = entropy_to_crack_time(min_entropy);
+
+	// assemble result
+	result res;
+	res.password = password;
+	res.matches = matches;
+	res.entropy = min_entropy;
+	res.crack_time = std::chrono::seconds(crack_seconds);
+	res.crack_time_display = calc_display_time(crack_seconds);
+	res.score = crack_time_to_score(crack_seconds);
+	return res;
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -48,6 +86,7 @@ double zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std
 const double zxcppvbn::single_guess = 0.01;
 const double zxcppvbn::num_attackers = 100.0;
 
+// Calculate estimated time to crack using the threat model above
 uint64_t zxcppvbn::entropy_to_crack_time(double entropy)
 {
 	double seconds_per_guess = single_guess / num_attackers;
@@ -56,6 +95,7 @@ uint64_t zxcppvbn::entropy_to_crack_time(double entropy)
 	return (uint64_t)floor(seconds);
 }
 
+// Return an easily interpretable score value (on a scale from 0 to 5)
 int zxcppvbn::crack_time_to_score(uint64_t seconds)
 {
 	if (seconds < 100) {
@@ -106,30 +146,61 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds)
 // Entropy functions
 //////////////////////////////////////////////////////////////////////////
 
-// Sum the cardinalities of the various character classes present in the password
-size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password)
+// Calculate entropy of a given submatch
+double zxcppvbn::calc_entropy(const match_result& match)
 {
-	size_t char_classes_count = char_classes_cardinality.size();
-	std::vector<bool> char_class_present(char_classes_count, false);
+	// Don't calculate again, return already calculated value
+	if (match.entropy > 0.0) {
+		return match.entropy;
+	}
+	return entropy_functions[match.pattern](match);
+}
 
-	// Find which character classes present in the password
-	for (char ord : password) {
-		for (size_t i = 0; i < char_classes_count; i++) {
-			auto c = char_classes_cardinality[i];
-			if (std::get<0>(c) <= ord && ord <= std::get<1>(c)) {
-				char_class_present[i] = true;
+// Calculate entropy of a repeat match
+double zxcppvbn::repeat_entropy(const match_result& match)
+{
+	size_t cardinality = calc_bruteforce_cardinality(match.token);
+	return log2((double)(cardinality * match.token.length()));
+}
+
+// Calculate entropy of a sequence match
+double zxcppvbn::sequence_entropy(const match_result& match)
+{
+	double base_entropy = 0;
+	char first_chr = match.token[0];
+	if (first_chr == 'a' || first_chr == '1') {
+		// Punish trivial sequences
+		base_entropy = 1;
+	} else {
+		// Base entropy depends on the characters in the sequence
+		for (auto& seq : sequences) {
+			if (seq.second.find(first_chr) != std::string::npos) {
+				base_entropy = log2((double)seq.second.size());
+				// Extra bit for uppercase
+				if (seq.first == "upper") {
+					base_entropy += 1.0;
+				}
 				break;
 			}
 		}
 	}
-
-	// Sum the cardinalities of those character classes
-	size_t c = 0;
-	for (size_t i = 0; i < char_classes_count; i++) {
-		if (char_class_present[i]) {
-			c += std::get<2>(char_classes_cardinality[i]);
-		}
+	// Extra bit for descending
+	if (!match.ascending) {
+		base_entropy += 1;
 	}
-	return c;
+	return base_entropy + log2(match.token.length());
 }
 
+double zxcppvbn::digits_entropy(const match_result& match)
+{
+	return log2(pow(10.0, (double)match.token.length()));
+}
+
+const size_t zxcppvbn::num_years = 119;
+const size_t zxcppvbn::num_months = 12;
+const size_t zxcppvbn::num_days = 31;
+
+double zxcppvbn::year_entropy(const match_result& match)
+{
+	return log2((double)num_years);
+}
