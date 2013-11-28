@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <sstream>
+#include <limits>
 
 //////////////////////////////////////////////////////////////////////////
 // Utility functions
@@ -125,7 +126,7 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	// Assemble result
 	res.password = password;
 	res.entropy = min_entropy;
-	res.crack_time = std::chrono::seconds(crack_seconds);
+	res.crack_time = std::chrono::seconds(crack_seconds > std::numeric_limits<int64_t>::max() ? std::numeric_limits<int64_t>::max() : (int64_t)crack_seconds);
 	res.crack_time_display = calc_display_time(crack_seconds);
 	res.score = crack_time_to_score(crack_seconds);
 	return std::move(res);
