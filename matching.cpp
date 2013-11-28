@@ -430,7 +430,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::sequence_match(co
 // Digits, years and dates matching
 //////////////////////////////////////////////////////////////////////////
 
-// Find positions of all matches of the given regular expression
+// Find positions of all non-overlapping matches of the given regular expression
 std::vector<std::pair<size_t, size_t>> zxcppvbn::findall(const std::string& password, const std::regex& rx) const
 {
 	std::vector<std::pair<size_t, size_t>> matches;
@@ -445,7 +445,7 @@ std::vector<std::pair<size_t, size_t>> zxcppvbn::findall(const std::string& pass
 	return std::move(matches);
 }
 
-// Find positions of all matches of the given regular expression, and split all matches to strings using another regular expression
+// Find positions of all non-overlapping matches of the given regular expression, and split all matches to strings using another regular expression
 std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> zxcppvbn::splitall(const std::string& password, const std::regex& rx, const std::regex& subrx) const
 {
 	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> results;
@@ -472,8 +472,10 @@ std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> zxcppvbn::spli
 	return std::move(results);
 }
 
+// Regular expression for matching digits
 const std::regex zxcppvbn::digits_rx("\\d{3,}");
 
+// Find all digit sequences
 std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::digits_match(const std::string& password) const
 {
 	std::vector<std::unique_ptr<match_result>> results;
@@ -487,8 +489,10 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::digits_match(cons
 	return std::move(results);
 }
 
+// Regular expression for matching years
 const std::regex zxcppvbn::year_rx("19\\d\\d|200\\d|201\\d");
 
+// Find all year numbers
 std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::year_match(const std::string& password) const
 {
 	std::vector<std::unique_ptr<match_result>> results;
@@ -502,6 +506,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::year_match(const 
 	return std::move(results);
 }
 
+// Find all dates
 std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_match(const std::string& password) const
 {
 	std::vector<std::unique_ptr<zxcppvbn::match_result>> results = date_without_sep_match(password);
@@ -510,26 +515,93 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_match(const 
 	return std::move(results);
 }
 
+// Regular expression to match all dates without separators
 const std::regex zxcppvbn::date_rx_without_sep("\\d{4,8}");
 
 std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_without_sep_match(const std::string& password) const
 {
-	std::vector<std::unique_ptr<zxcppvbn::match_result>> matches;
-	// TODO
-	return std::move(matches);
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> results;
+
+	for (auto& match : findall(password, date_rx_without_sep)) {
+		size_t i = match.first;
+		size_t j = match.second;
+		std::string token = substr(password, i, j);
+		size_t end = token.size();
+
+		// Parse year alternatives
+		std::vector<std::tuple<size_t /* i */, size_t /* j */, std::string /* year */, std::string /* daymonth */>> candidates_round1;
+		if (end <= 6) {
+			// 2-digit year prefix
+			candidates_round1.push_back(std::make_tuple(i, j, substr(token, 0, 1), substr(token, 2, end - 1)));
+			// 2-digit year suffix
+			candidates_round1.push_back(std::make_tuple(i, j, substr(token, end - 2, end - 1), substr(token, 0, end - 3)));
+		}
+		if (end >= 6) {
+			// 4-digit year prefix
+			candidates_round1.push_back(std::make_tuple(i, j, substr(token, 0, 3), substr(token, 4, end - 1)));
+			// 4-digit year suffix
+			candidates_round1.push_back(std::make_tuple(i, j, substr(token, end - 4, end - 1), substr(token, 0, end - 5)));
+		}
+
+		// Parse day/month alternatives
+		std::vector<std::tuple<size_t /* i */, size_t /* j */, std::string /* year */, std::string /* day */, std::string /* month */>> candidates_round2;
+		for (auto& candidate : candidates_round1) {
+			size_t i = std::get<0>(candidate), j = std::get<1>(candidate);
+			std::string& year = std::get<2>(candidate);
+			std::string& daymonth = std::get<3>(candidate);
+
+			if (daymonth.size() == 2) {
+				candidates_round2.push_back(std::make_tuple(i, j, year, substr(daymonth, 0, 0), substr(daymonth, 1, 1)));
+			} else if (daymonth.size() == 3) {
+				candidates_round2.push_back(std::make_tuple(i, j, year, substr(daymonth, 0, 1), substr(daymonth, 2, 2)));
+				candidates_round2.push_back(std::make_tuple(i, j, year, substr(daymonth, 0, 0), substr(daymonth, 1, 2)));
+			} else if (daymonth.size() == 4) {
+				candidates_round2.push_back(std::make_tuple(i, j, year, substr(daymonth, 0, 1), substr(daymonth, 2, 3)));
+			}
+		}
+
+		// Final loop: reject invalid dates
+		for (auto& candidate : candidates_round2) {
+			// Convert string to int
+			uint16_t y;
+			uint16_t m;
+			uint16_t d;
+			std::istringstream(std::get<2>(candidate)) >> y;
+			std::istringstream(std::get<3>(candidate)) >> m;
+			std::istringstream(std::get<4>(candidate)) >> d;
+
+			// Add result if valid date
+			if (check_date(y, m, d)) {
+				std::unique_ptr<match_result> result(new match_result(match_pattern::DATE));
+				result->i = std::get<0>(candidate);
+				result->j = std::get<1>(candidate);
+				result->token = substr(password, result->i, result->j);
+				result->day = d;
+				result->month = m;
+				result->year = y;
+				results.push_back(std::move(result));
+			}
+		}
+	}
+
+	return std::move(results);
 }
 
-//const std::regex zxcppvbn::date_rx_year_suffix(R"#(\d{1,2})(\s|-|/|\\|_|\.)(\d{1,2})\2(19\d{2}|200\d|201\d|\d{2})#");
+// Regular expression to match all dates with separators (mm/dd/yyyy)
 const std::regex zxcppvbn::date_rx_year_suffix("(\\d{1,2})(\\s|-|/|\\\\|_|\\.)(\\d{1,2})\\2(19\\d{2}|200\\d|201\\d|\\d{2})");
-//const std::regex zxcppvbn::date_rx_year_prefix(R"#(19\d{2}|200\d|201\d|\d{2})(\s|-|/|\\|_|\.)(\d{1,2})\2(\d{1,2})#");
+// Regular expression to match all dates with separators (yyyy/mm/dd)
 const std::regex zxcppvbn::date_rx_year_prefix("(19\\d{2}|200\\d|201\\d|\\d{2})(\\s|-|/|\\\\|_|\\.)(\\d{1,2})\\2(\\d{1,2})");
+// Regular expression to find numbers in dates with separators
 const std::regex zxcppvbn::date_rx_split("\\d{1,4}");
 
+// Find dates with separator characters
 std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_sep_match(const std::string& password) const
 {
 	std::vector<std::unique_ptr<zxcppvbn::match_result>> results;
 
+	// Check date value, and if it seems a valid date, add as a match result
 	auto append_result = [this, &results, &password](size_t i, size_t j, const std::string & year, const std::string & daymonth1, const std::string & daymonth2, const std::string & sep) {
+		// Convert string to int
 		uint16_t y;
 		uint16_t m;
 		uint16_t d;
@@ -537,6 +609,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_sep_match(co
 		std::istringstream(daymonth1) >> m;
 		std::istringstream(daymonth2) >> d;
 
+		// Add result if valid date
 		if (check_date(y, m, d)) {
 			std::unique_ptr<match_result> result(new match_result(match_pattern::DATE));
 			result->i = i;
@@ -550,13 +623,13 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_sep_match(co
 		}
 	};
 
-	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> matches = splitall(password, date_rx_year_suffix, date_rx_split);
-	for (auto& match : matches) {
+	// Search for dates with year first
+	for (auto& match : splitall(password, date_rx_year_suffix, date_rx_split)) {
 		std::vector<std::string>& subs = std::get<2>(match);
 		append_result(std::get<0>(match), std::get<1>(match), subs[4], subs[2], subs[0], subs[1]);
 	}
-	matches = splitall(password, date_rx_year_prefix, date_rx_split);
-	for (auto& match : matches) {
+	// Search for dates with year last
+	for (auto& match : splitall(password, date_rx_year_prefix, date_rx_split)) {
 		std::vector<std::string>& subs = std::get<2>(match);
 		append_result(std::get<0>(match), std::get<1>(match), subs[0], subs[2], subs[4], subs[1]);
 	}
@@ -564,6 +637,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_sep_match(co
 	return std::move(results);
 }
 
+// Check whether a given date is valid or not
 bool zxcppvbn::check_date(uint16_t year, uint16_t& month, uint16_t& day) const
 {
 	// tolerate both day - month and month - day order

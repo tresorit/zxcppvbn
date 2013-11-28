@@ -66,8 +66,8 @@ public:
 
 		// DATE
 		uint16_t year;
-		uint8_t month;
-		uint8_t day;
+		uint16_t month;
+		uint16_t day;
 		std::string separator;
 
 		match_result(match_pattern p);
