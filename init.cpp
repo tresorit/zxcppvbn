@@ -4,9 +4,9 @@
 
 #include <numeric>
 
-// Init to empty
-zxcppvbn::match_result::match_result()
-	: pattern(match_pattern::UNKNOWN), i(0), j(0), token(), entropy(0.0),
+// Init to empty, no submatch without a valid pattern
+zxcppvbn::match_result::match_result(match_pattern p)
+	: pattern(p), i(0), j(0), token(), entropy(0.0),
 	  dictionary_name(), matched_word(), rank(0), base_entropy(0), uppercase_entropy(0),
 	  sub(), sub_display(), l33t_entropy(),
 	  graph(), turns(0), shifted_count(0),
@@ -17,12 +17,54 @@ zxcppvbn::match_result::match_result()
 
 // Init to empty
 zxcppvbn::result::result()
-	: password(), entropy(0.0), crack_time(0), crack_time_display(), score(-1), matches(), calc_time(0)
+	: password(), entropy(0.0), crack_time(0), crack_time_display(), score(0), matches(), calc_time(0)
 {
 }
 
+zxcppvbn::result::result(const result& o)
+	: result()
+{
+	*this = o;
+}
+
+zxcppvbn::result::result(result&& o)
+	: result()
+{
+	*this = o;
+}
+
+zxcppvbn::result& zxcppvbn::result::operator=(const result& o)
+{
+	if (this != &o) {
+		password = o.password;
+		entropy = o.entropy;
+		crack_time = o.crack_time;
+		crack_time_display = o.crack_time_display;
+		score = o.score;
+		for (auto& match : o.matches) {
+			matches.push_back(std::unique_ptr<match_result>(new match_result(*match)));
+		}
+		calc_time = o.calc_time;
+	}
+	return *this;
+}
+
+zxcppvbn::result& zxcppvbn::result::operator=(result && o)
+{
+	if (this != &o) {
+		password = std::move(o.password);
+		entropy = o.entropy;
+		crack_time = std::move(o.crack_time);
+		crack_time_display = std::move(o.crack_time_display);
+		score = o.score;
+		matches = std::move(o.matches);
+		calc_time = std::move(o.calc_time);
+	}
+	return *this;
+}
+
 // Read compressed size from the end of the gzipped data
-size_t zxcppvbn::calc_decompressed_size(const uint8_t* comp_data, size_t comp_size)
+size_t zxcppvbn::calc_decompressed_size(const uint8_t* comp_data, size_t comp_size) const
 {
 	size_t dsize = comp_data[comp_size - 1];
 	dsize = 256 * dsize + comp_data[comp_size - 2];
@@ -63,10 +105,10 @@ bool zxcppvbn::build_ranked_dicts()
 			}
 			std::string w(&raw[wbegin], &raw[i++]);
 
-			l.insert(std::make_pair(w, rank++));
+			l.insert(std::make_pair(std::move(w), rank++));
 		}
 
-		ranked_dictionaries.insert(std::make_pair(d, l));
+		ranked_dictionaries.insert(std::make_pair(std::move(d), std::move(l)));
 		i++;
 	}
 	return true;
@@ -110,14 +152,14 @@ bool zxcppvbn::build_graphs()
 				}
 				std::string w(&raw[wbegin], &raw[i++]);
 
-				l.push_back(w);
+				l.push_back(std::move(w));
 			}
 
-			m.insert(std::make_pair(c, l));
+			m.insert(std::make_pair(std::move(c), std::move(l)));
 			i++;
 		}
 
-		graphs.insert(std::make_pair(k, m));
+		graphs.insert(std::make_pair(std::move(k), std::move(m)));
 		i++;
 	}
 	return true;
@@ -192,7 +234,7 @@ void zxcppvbn::build_sequences()
 		for (char c = start, i = 0; c <= end; c++, i++) {
 			sequence[i] = c;
 		}
-		sequences.insert(std::make_pair(name, sequence));
+		sequences.insert(std::make_pair(name, std::move(sequence)));
 	};
 
 	append_sequences("lower", 'a', 'z');
@@ -277,8 +319,8 @@ zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::ve
 	}
 
 	// calculate result
-	std::vector<match_result> matches = omnimatch(password);
+	std::vector<std::unique_ptr<match_result>> matches = omnimatch(password);
 	result res = minimum_entropy_match_sequence(password, matches);
 	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
-	return res;
+	return std::move(res);
 }

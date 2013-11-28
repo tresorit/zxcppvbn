@@ -8,7 +8,7 @@
 //////////////////////////////////////////////////////////////////////////
 
 // Combination without putback
-uint64_t zxcppvbn::nCk(uint64_t n, uint64_t k)
+uint64_t zxcppvbn::nCk(uint64_t n, uint64_t k) const
 {
 	if (k > n) {
 		return 0;
@@ -22,7 +22,7 @@ uint64_t zxcppvbn::nCk(uint64_t n, uint64_t k)
 }
 
 // Sum the cardinalities of the various character classes present in the password
-size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password)
+size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password) const
 {
 	size_t char_classes_count = char_classes_cardinality.size();
 	std::vector<bool> char_class_present(char_classes_count, false);
@@ -30,7 +30,7 @@ size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password)
 	// Find which character classes present in the password
 	for (char ord : password) {
 		for (size_t i = 0; i < char_classes_count; i++) {
-			auto c = char_classes_cardinality[i];
+			auto& c = char_classes_cardinality[i];
 			if (std::get<0>(c) <= ord && ord <= std::get<1>(c)) {
 				char_class_present[i] = true;
 				break;
@@ -52,36 +52,40 @@ size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password)
 // Complex scoring
 //////////////////////////////////////////////////////////////////////////
 
-zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<match_result>& matches)
+zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match_result>>& matches) const
 {
 	size_t bruteforce_cardinality = calc_bruteforce_cardinality(password);
+	size_t password_size = password.size();
+	if (password_size == 0) {
+		return result();
+	}
 
-	std::vector<double> up_to_k(password.size(), 0.0);        // minimum entropy up to k.
-	std::vector<match_result> backpointers(password.size());  // for the optimal sequence of matches up to k, holds the final match (match.j == k). match.pattern == unknown means the sequence ends w/ a brute-force character.
-	for (size_t k = 0; k < password.size(); k++) {
+	std::vector<double> up_to_k(password_size, 0.0);        // minimum entropy up to k.
+	std::vector<std::unique_ptr<match_result>> backpointers(password_size);  // for the optimal sequence of matches up to k, holds the final match (match.j == k). match.pattern == unknown means the sequence ends w/ a brute-force character.
+	for (size_t k = 0; k < password_size; k++) {
 		// starting scenario to try and beat : adding a brute-force character to the minimum entropy sequence at k - 1.
-		up_to_k[k] = ((k > 0) ? up_to_k[k - 1] : 0.0) + log2((double)bruteforce_cardinality);
-		backpointers[k].pattern = match_pattern::UNKNOWN;
+		up_to_k[k] = ((k > 0) ? up_to_k[k - 1] : 0.0) + ::log2((double)bruteforce_cardinality);
+		backpointers[k] = nullptr;
 		for (auto& match : matches) {
-			if (match.j == k) {
+			if (match->j == k) {
 				// see if best entropy up to i - 1 + entropy of this match is less than the current minimum at j.
-				double candidate_entropy = ((match.i > 0) ? up_to_k[match.i - 1] : 0.0) + calc_entropy(match);
-				if (candidate_entropy < up_to_k[match.j]) {
-					up_to_k[match.j] = candidate_entropy;
-					backpointers[match.j] = match;
+				double candidate_entropy = ((match->i > 0) ? up_to_k[match->i - 1] : 0.0) + calc_entropy(*match);
+				if (candidate_entropy < up_to_k[match->j]) {
+					up_to_k[match->j] = candidate_entropy;
+					backpointers[match->j] = std::move(match);
 				}
 			}
 		}
 	}
 
 	// walk backwards and decode the best sequence
-	std::vector<match_result> match_sequence;
-	int32_t k2 = password.size() - 1;
+	std::vector<std::unique_ptr<match_result>> match_sequence;
+	int32_t k2 = password_size - 1;
 	while (k2 >= 0) {
-		match_result& match = backpointers[k2];
-		if (match.pattern != match_pattern::UNKNOWN) {
-			match_sequence.push_back(match);
-			k2 = match.i - 1;
+		std::unique_ptr<match_result>& match = backpointers[k2];
+		if (match != nullptr) {
+			k2 = match->i - 1;
+			match_sequence.push_back(std::move(match));
 		} else {
 			k2 -= 1;
 		}
@@ -90,14 +94,13 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 
 	// Fill in the blanks between pattern matches with bruteforce "matches"
 	// That way the match sequence fully covers the password : match1.j == match2.i - 1 for every adjacent match1, match2.
-	auto make_bruteforce_match = [this, &password, &bruteforce_cardinality](size_t i, size_t j) {
-		match_result result;
-		result.pattern = match_pattern::BRUTEFORCE;
-		result.i = i;
-		result.j = j;
-		result.token = substr(password, i, j);
-		result.entropy = log2((double)pow(bruteforce_cardinality, j - i + 1));
-		result.cardinality = bruteforce_cardinality;
+	auto make_bruteforce_match = [this, &password, &bruteforce_cardinality](size_t i, size_t j) -> std::unique_ptr<match_result> {
+		std::unique_ptr<match_result> result(new match_result(match_pattern::BRUTEFORCE));
+		result->i = i;
+		result->j = j;
+		result->token = substr(password, i, j);
+		result->entropy = ::log2((double)::pow(bruteforce_cardinality, j - i + 1));
+		result->cardinality = bruteforce_cardinality;
 		return result;
 	};
 
@@ -105,17 +108,17 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	result res;
 	size_t k3 = 0;
 	for (auto& match : match_sequence) {
-		if (match.i - k3 > 0) {
-			res.matches.push_back(make_bruteforce_match(k3, match.i - 1));
+		if (match->i - k3 > 0) {
+			res.matches.push_back(make_bruteforce_match(k3, match->i - 1));
 		}
-		k3 = match.j + 1;
-		res.matches.push_back(match);
+		k3 = match->j + 1;
+		res.matches.push_back(std::move(match));
 	}
 	if (k3 < password.size()) {
 		res.matches.push_back(make_bruteforce_match(k3, password.size() - 1));
 	}
 
-	double min_entropy = up_to_k[password.size() - 1];
+	double min_entropy = up_to_k[password_size - 1];
 	uint64_t crack_seconds = entropy_to_crack_time(min_entropy);
 
 	// Assemble result
@@ -124,7 +127,7 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	res.crack_time = std::chrono::seconds(crack_seconds);
 	res.crack_time_display = calc_display_time(crack_seconds);
 	res.score = crack_time_to_score(crack_seconds);
-	return res;
+	return std::move(res);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -146,16 +149,16 @@ const double zxcppvbn::single_guess = 0.01;
 const double zxcppvbn::num_attackers = 100.0;
 
 // Calculate estimated time to crack using the threat model above
-uint64_t zxcppvbn::entropy_to_crack_time(double entropy)
+uint64_t zxcppvbn::entropy_to_crack_time(double entropy) const
 {
 	double seconds_per_guess = single_guess / num_attackers;
 	// average, not total
-	double seconds = 0.5 * pow(2, entropy) * seconds_per_guess;
-	return (uint64_t)floor(seconds);
+	double seconds = 0.5 * ::pow(2, entropy) * seconds_per_guess;
+	return (uint64_t)::floor(seconds);
 }
 
 // Return an easily interpretable score value (on a scale from 0 to 5)
-int zxcppvbn::crack_time_to_score(uint64_t seconds)
+int zxcppvbn::crack_time_to_score(uint64_t seconds) const
 {
 	if (seconds < 100) {
 		return 0;
@@ -171,7 +174,7 @@ int zxcppvbn::crack_time_to_score(uint64_t seconds)
 }
 
 // Convert seconds to a human-readable time duration string
-std::string zxcppvbn::calc_display_time(uint64_t seconds)
+std::string zxcppvbn::calc_display_time(uint64_t seconds) const
 {
 	const uint64_t minute = 60;
 	const uint64_t hour = minute * 60;
@@ -180,20 +183,30 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds)
 	const uint64_t year = month * 12;
 	const uint64_t century = year * 100;
 
+	auto fraction = [seconds](uint64_t divide) {
+		uint64_t result = seconds / divide;
+		// If we have a remainder
+		if (seconds % divide != 0) {
+			// Ceil
+			result += 1;
+		}
+		return result;
+	};
+
 	std::ostringstream oss;
 
 	if (seconds < minute) {
 		oss << "instant";
 	} else if (seconds < hour) {
-		oss << seconds / minute << " minutes";
+		oss << fraction(minute) << " minutes";
 	} else if (seconds < day) {
-		oss << seconds / hour << " hours";
+		oss << fraction(hour) << " hours";
 	} else if (seconds < month) {
-		oss << seconds / day << " days";
+		oss << fraction(day) << " days";
 	} else if (seconds < year) {
-		oss << seconds / month << " months";
+		oss << fraction(month) << " months";
 	} else if (seconds < century) {
-		oss << seconds / year << " years";
+		oss << fraction(year) << " years";
 	} else {
 		oss << "centuries";
 	}
@@ -206,30 +219,30 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds)
 //////////////////////////////////////////////////////////////////////////
 
 // Calculate entropy of a given submatch
-double zxcppvbn::calc_entropy(match_result& match)
+double zxcppvbn::calc_entropy(match_result& match) const
 {
 	// Only calculate once
 	if (match.entropy <= 0.0) {
-		match.entropy = entropy_functions[match.pattern](match);
+		match.entropy = entropy_functions.at(match.pattern)(match);
 	}
 	return match.entropy;
 }
 
 // Calculate entropy of non-l33t dictionary word
-double zxcppvbn::dictionary_entropy(match_result& match)
+double zxcppvbn::dictionary_entropy(match_result& match) const
 {
-	match.base_entropy = log2((double)match.rank);
+	match.base_entropy = ::log2((double)match.rank);
 	match.uppercase_entropy = extra_uppercase_entropy(match);
 	return match.base_entropy + match.uppercase_entropy;
 }
 
 // Calculate extra entropy from uppercase letters
-double zxcppvbn::extra_uppercase_entropy(match_result& match)
+double zxcppvbn::extra_uppercase_entropy(const match_result& match) const
 {
 	const std::string& word = match.token;
 	size_t len = word.size();
-	std::string& upper = sequences["upper"];
-	std::string& lower = sequences["lower"];
+	const std::string& upper = sequences.at("upper");
+	const std::string& lower = sequences.at("lower");
 
 	// Determine casing characteristics
 	bool firstUpper = false;
@@ -281,18 +294,18 @@ double zxcppvbn::extra_uppercase_entropy(match_result& match)
 	for (size_t i = 0; i <= std::min(numUpper, numLower); i++) {
 		possibilities += nCk(numUpper + numLower, i);
 	}
-	return log2((double)possibilities);
+	return ::log2((double)possibilities);
 }
 
 // Calculate entropy of l33t-substituted dictionary word
-double zxcppvbn::l33t_entropy(match_result& match)
+double zxcppvbn::l33t_entropy(match_result& match) const
 {
 	match.l33t_entropy = extra_l33t_entropy(match);
 	return dictionary_entropy(match) + match.l33t_entropy;
 }
 
 // Calculate extra entropy caused by l33t substitutions
-double zxcppvbn::extra_l33t_entropy(match_result& match)
+double zxcppvbn::extra_l33t_entropy(const match_result& match) const
 {
 	uint64_t possibilities = 0;
 	for (auto& it : match.sub) {
@@ -308,18 +321,18 @@ double zxcppvbn::extra_l33t_entropy(match_result& match)
 	if (possibilities < 2) {
 		return 1.0;
 	} else {
-		return log2((double)possibilities);
+		return ::log2((double)possibilities);
 	}
 }
 
 // Calculate entropy of a neighboring keyboard keystroke sequence
-double zxcppvbn::spatial_entropy(match_result& match)
+double zxcppvbn::spatial_entropy(const match_result& match) const
 {
 	double s, d;
 
 	// Find matching stats
-	for (auto& stat : graph_stats) {
-		std::vector<std::string>& names = std::get<0>(stat.second);
+	for (const auto& stat : graph_stats) {
+		const std::vector<std::string>& names = std::get<0>(stat.second);
 		auto it = std::find(names.begin(), names.end(), match.graph);
 		if (it != names.end()) {
 			s = std::get<2>(stat.second);
@@ -336,10 +349,10 @@ double zxcppvbn::spatial_entropy(match_result& match)
 	for (size_t i = 2; i <= L; i++) {
 		size_t possible_turns = std::min(t, i - 1);
 		for (size_t j = 1; j <= possible_turns; j++) {
-			possibilities += nCk(i - 1, j - 1) * s * pow(d, j);
+			possibilities += nCk(i - 1, j - 1) * s * ::pow(d, j);
 		}
 	}
-	double entropy = log2(possibilities);
+	double entropy = ::log2(possibilities);
 
 	// Add extra entropy for shifted keys. (% instead of 5, A instead of a.)
 	// Math is similar to extra entropy from uppercase letters in dictionary matches.
@@ -351,20 +364,20 @@ double zxcppvbn::spatial_entropy(match_result& match)
 		for (size_t i = 0; i <= possible_shifts; i++) {
 			possibilities += nCk(S + U, i);
 		}
-		entropy += log2(possibilities);
+		entropy += ::log2(possibilities);
 	}
 	return entropy;
 }
 
 // Calculate entropy of a repeat match
-double zxcppvbn::repeat_entropy(match_result& match)
+double zxcppvbn::repeat_entropy(const match_result& match) const
 {
 	size_t cardinality = calc_bruteforce_cardinality(match.token);
-	return log2((double)(cardinality * match.token.length()));
+	return ::log2((double)(cardinality * match.token.length()));
 }
 
 // Calculate entropy of a sequence match
-double zxcppvbn::sequence_entropy(match_result& match)
+double zxcppvbn::sequence_entropy(const match_result& match) const
 {
 	double base_entropy = 0;
 	char first_chr = match.token[0];
@@ -375,7 +388,7 @@ double zxcppvbn::sequence_entropy(match_result& match)
 		// Base entropy depends on the characters in the sequence
 		for (auto& seq : sequences) {
 			if (seq.second.find(first_chr) != std::string::npos) {
-				base_entropy = log2((double)seq.second.size());
+				base_entropy = ::log2((double)seq.second.size());
 				// Extra bit for uppercase
 				if (seq.first == "upper") {
 					base_entropy += 1.0;
@@ -386,21 +399,21 @@ double zxcppvbn::sequence_entropy(match_result& match)
 	}
 	// Extra bit for descending
 	if (!match.ascending) {
-		base_entropy += 1;
+		base_entropy += 1.0;
 	}
-	return base_entropy + log2(match.token.length());
+	return base_entropy + ::log2((double)match.token.length());
 }
 
-double zxcppvbn::digits_entropy(match_result& match)
+double zxcppvbn::digits_entropy(const match_result& match) const
 {
-	return log2(pow(10.0, (double)match.token.length()));
+	return ::log2(::pow(10.0, match.token.length()));
 }
 
-const size_t zxcppvbn::num_years = 119;
+const size_t zxcppvbn::num_years = 2019 - 1900;
 const size_t zxcppvbn::num_months = 12;
 const size_t zxcppvbn::num_days = 31;
 
-double zxcppvbn::year_entropy(match_result& match)
+double zxcppvbn::year_entropy(const match_result& match) const
 {
-	return log2((double)num_years);
+	return ::log2((double)num_years);
 }
