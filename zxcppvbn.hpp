@@ -64,6 +64,12 @@ public:
 		// BRUTEFORCE
 		size_t cardinality;
 
+		// DATE
+		uint16_t year;
+		uint8_t month;
+		uint8_t day;
+		std::string separator;
+
 		match_result(match_pattern p);
 	};
 
@@ -145,10 +151,18 @@ private:
 	std::vector<std::unique_ptr<match_result>> sequence_match(const std::string& password) const;
 	// Digits, years and dates matching
 	std::vector<std::pair<size_t, size_t>> findall(const std::string& password, const std::regex& rx) const;
+	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> splitall(const std::string& password, const std::regex& rx, const std::regex& subrx) const;
 	static const std::regex digits_rx;
 	std::vector<std::unique_ptr<match_result>> digits_match(const std::string& password) const;
 	static const std::regex year_rx;
 	std::vector<std::unique_ptr<match_result>> year_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match_result>> date_match(const std::string& password) const;
+	static const std::regex date_rx_without_sep;
+	std::vector<std::unique_ptr<match_result>> date_without_sep_match(const std::string& password) const;
+	static const std::regex date_rx_year_suffix;
+	static const std::regex date_rx_year_prefix;
+	static const std::regex date_rx_split;
+	std::vector<std::unique_ptr<match_result>> date_sep_match(const std::string& password) const;
 
 	// Scoring functions (scoring.cpp)
 
@@ -178,10 +192,13 @@ private:
 	double sequence_entropy(const match_result& match) const;
 	// Digits, years and dates entropy
 	double digits_entropy(const match_result& match) const;
-	static const size_t num_years;
-	static const size_t num_months;
-	static const size_t num_days;
+	static const uint16_t min_year;
+	static const uint16_t max_year;
+	static const uint8_t max_month;
+	static const uint8_t max_day;
 	double year_entropy(const match_result& match) const;
+	double date_entropy(const match_result& match) const;
+	bool check_date(uint16_t year, uint16_t& month, uint16_t& day) const;
 
 public:
 	zxcppvbn();

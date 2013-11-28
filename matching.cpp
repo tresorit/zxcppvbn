@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <set>
+#include <sstream>
 
 //////////////////////////////////////////////////////////////////////////
 // Utility functions
@@ -49,9 +50,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::omnimatch(const s
 	// Invoke all matchers and collect results
 	for (auto& matcher : matchers) {
 		std::vector<std::unique_ptr<match_result>> matches = matcher(password);
-		for (auto& match : matches) {
-			results.push_back(std::move(match));
-		}
+		results.insert(results.end(), std::make_move_iterator(matches.begin()), std::make_move_iterator(matches.end()));
 	}
 	// Sort match results according to their position in the input
 	std::sort(results.begin(), results.end(), [](const std::unique_ptr<match_result>& match1, const std::unique_ptr<match_result>& match2) {
@@ -313,9 +312,7 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::spatial_match(con
 	// Invoke matcher for all keyboard graphs and collect results
 	for (auto& graph : graphs) {
 		std::vector<std::unique_ptr<match_result>> matches = spatial_match_helper(password, graph.first, graph.second);
-		for (auto& match : matches) {
-			results.push_back(std::move(match));
-		}
+		results.insert(results.end(), std::make_move_iterator(matches.begin()), std::make_move_iterator(matches.end()));
 	}
 	return std::move(results);
 }
@@ -433,18 +430,46 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::sequence_match(co
 // Digits, years and dates matching
 //////////////////////////////////////////////////////////////////////////
 
+// Find positions of all matches of the given regular expression
 std::vector<std::pair<size_t, size_t>> zxcppvbn::findall(const std::string& password, const std::regex& rx) const
 {
 	std::vector<std::pair<size_t, size_t>> matches;
 
 	std::sregex_iterator it(password.begin(), password.end(), rx);
 	std::sregex_iterator end;
-	while (it != end) {
+	for (/* empty */; it != end; ++it) {
 		size_t i = it->position();
 		size_t j = i + it->length() - 1;
 		matches.push_back(std::make_pair(i, j));
 	}
 	return std::move(matches);
+}
+
+// Find positions of all matches of the given regular expression, and split all matches to strings using another regular expression
+std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> zxcppvbn::splitall(const std::string& password, const std::regex& rx, const std::regex& subrx) const
+{
+	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> results;
+
+	std::vector<std::pair<size_t, size_t>> matches = findall(password, rx);
+	for (auto& match : matches) {
+		std::vector<std::string> parts;
+		std::vector<std::pair<size_t, size_t>> subs = findall(substr(password, match.first, match.second), subrx);
+		size_t k = 0;
+		for (auto& sub : subs) {
+			if (k < sub.first) {
+				parts.push_back(substr(password, k, sub.first - 1));
+			}
+			parts.push_back(substr(password, sub.first, sub.second));
+			k = sub.second + 1;
+		}
+		if (k < match.second) {
+			parts.push_back(substr(password, k, match.second));
+		}
+
+		results.push_back(std::make_tuple(match.first, match.second, std::move(parts)));
+	}
+
+	return std::move(results);
 }
 
 const std::regex zxcppvbn::digits_rx("\\d{3,}");
@@ -475,4 +500,83 @@ std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::year_match(const 
 		results.push_back(std::move(result));
 	}
 	return std::move(results);
+}
+
+std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_match(const std::string& password) const
+{
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> results = date_without_sep_match(password);
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> matches = date_sep_match(password);
+	results.insert(results.end(), std::make_move_iterator(matches.begin()), std::make_move_iterator(matches.end()));
+	return std::move(results);
+}
+
+const std::regex zxcppvbn::date_rx_without_sep("\\d{4,8}");
+
+std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_without_sep_match(const std::string& password) const
+{
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> matches;
+	// TODO
+	return std::move(matches);
+}
+
+//const std::regex zxcppvbn::date_rx_year_suffix(R"#(\d{1,2})(\s|-|/|\\|_|\.)(\d{1,2})\2(19\d{2}|200\d|201\d|\d{2})#");
+const std::regex zxcppvbn::date_rx_year_suffix("(\\d{1,2})(\\s|-|/|\\\\|_|\\.)(\\d{1,2})\\2(19\\d{2}|200\\d|201\\d|\\d{2})");
+//const std::regex zxcppvbn::date_rx_year_prefix(R"#(19\d{2}|200\d|201\d|\d{2})(\s|-|/|\\|_|\.)(\d{1,2})\2(\d{1,2})#");
+const std::regex zxcppvbn::date_rx_year_prefix("(19\\d{2}|200\\d|201\\d|\\d{2})(\\s|-|/|\\\\|_|\\.)(\\d{1,2})\\2(\\d{1,2})");
+const std::regex zxcppvbn::date_rx_split("\\d{1,4}");
+
+std::vector<std::unique_ptr<zxcppvbn::match_result>> zxcppvbn::date_sep_match(const std::string& password) const
+{
+	std::vector<std::unique_ptr<zxcppvbn::match_result>> results;
+
+	auto append_result = [this, &results, &password](size_t i, size_t j, const std::string & year, const std::string & daymonth1, const std::string & daymonth2, const std::string & sep) {
+		uint16_t y;
+		uint16_t m;
+		uint16_t d;
+		std::istringstream(year) >> y;
+		std::istringstream(daymonth1) >> m;
+		std::istringstream(daymonth2) >> d;
+
+		if (check_date(y, m, d)) {
+			std::unique_ptr<match_result> result(new match_result(match_pattern::DATE));
+			result->i = i;
+			result->j = j;
+			result->token = substr(password, i, j);
+			result->separator = sep;
+			result->day = d;
+			result->month = m;
+			result->year = y;
+			results.push_back(std::move(result));
+		}
+	};
+
+	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> matches = splitall(password, date_rx_year_suffix, date_rx_split);
+	for (auto& match : matches) {
+		std::vector<std::string>& subs = std::get<2>(match);
+		append_result(std::get<0>(match), std::get<1>(match), subs[4], subs[2], subs[0], subs[1]);
+	}
+	matches = splitall(password, date_rx_year_prefix, date_rx_split);
+	for (auto& match : matches) {
+		std::vector<std::string>& subs = std::get<2>(match);
+		append_result(std::get<0>(match), std::get<1>(match), subs[0], subs[2], subs[4], subs[1]);
+	}
+
+	return std::move(results);
+}
+
+bool zxcppvbn::check_date(uint16_t year, uint16_t& month, uint16_t& day) const
+{
+	// tolerate both day - month and month - day order
+	if (max_month <= month && month <= max_day && day <= max_month) {
+		std::swap(month, day);
+	}
+
+	if (day > max_day || month > max_month) {
+		return false;
+	}
+	if (year < min_year || year > max_year) {
+		return false;
+	}
+
+	return true;
 }

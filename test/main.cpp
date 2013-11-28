@@ -8,5 +8,5 @@ int main()
 	//zxcppvbn::result result = zxcvbn("qwer4321");
 	//zxcppvbn::result result = zxcvbn("xxxxxxyyyyxwvut");
 	//zxcppvbn::result result = zxcvbn("123456DCBA");
-	zxcppvbn::result result = zxcvbn("");
+	zxcppvbn::result result = zxcvbn("31/12/1998");
 }

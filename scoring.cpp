@@ -61,18 +61,19 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	}
 
 	std::vector<double> up_to_k(password_size, 0.0);        // minimum entropy up to k.
-	std::vector<std::unique_ptr<match_result>> backpointers(password_size);  // for the optimal sequence of matches up to k, holds the final match (match.j == k). match.pattern == unknown means the sequence ends w/ a brute-force character.
+	std::vector<int32_t> backpointers(password_size, -1);        // for the optimal sequence of matches up to k, holds the final match (match.j == k). match.pattern == unknown means the sequence ends w/ a brute-force character.
 	for (size_t k = 0; k < password_size; k++) {
 		// starting scenario to try and beat : adding a brute-force character to the minimum entropy sequence at k - 1.
 		up_to_k[k] = ((k > 0) ? up_to_k[k - 1] : 0.0) + ::log2((double)bruteforce_cardinality);
-		backpointers[k] = nullptr;
-		for (auto& match : matches) {
+		backpointers[k] = -1;
+		for (size_t l = 0; l < matches.size(); l++) {
+			auto& match = matches[l];
 			if (match->j == k) {
 				// see if best entropy up to i - 1 + entropy of this match is less than the current minimum at j.
 				double candidate_entropy = ((match->i > 0) ? up_to_k[match->i - 1] : 0.0) + calc_entropy(*match);
 				if (candidate_entropy < up_to_k[match->j]) {
 					up_to_k[match->j] = candidate_entropy;
-					backpointers[match->j] = std::move(match);
+					backpointers[match->j] = l;
 				}
 			}
 		}
@@ -82,8 +83,8 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	std::vector<std::unique_ptr<match_result>> match_sequence;
 	int32_t k2 = password_size - 1;
 	while (k2 >= 0) {
-		std::unique_ptr<match_result>& match = backpointers[k2];
-		if (match != nullptr) {
+		if (backpointers[k2] >= 0) {
+			std::unique_ptr<match_result>& match = matches[backpointers[k2]];
 			k2 = match->i - 1;
 			match_sequence.push_back(std::move(match));
 		} else {
@@ -404,16 +405,38 @@ double zxcppvbn::sequence_entropy(const match_result& match) const
 	return base_entropy + ::log2((double)match.token.length());
 }
 
+// Calculate entropy of simple digits
 double zxcppvbn::digits_entropy(const match_result& match) const
 {
 	return ::log2(::pow(10.0, match.token.length()));
 }
 
-const size_t zxcppvbn::num_years = 2019 - 1900;
-const size_t zxcppvbn::num_months = 12;
-const size_t zxcppvbn::num_days = 31;
+const uint16_t zxcppvbn::min_year = 1900;
+const uint16_t zxcppvbn::max_year = 2019;
+const uint8_t zxcppvbn::max_month = 12;
+const uint8_t zxcppvbn::max_day = 31;
 
+// Calculate entropy of year numbers
 double zxcppvbn::year_entropy(const match_result& match) const
 {
-	return ::log2((double)num_years);
+	return ::log2((double)(max_year - min_year));
+}
+
+// Calculate entropy of dates
+double zxcppvbn::date_entropy(const match_result& match) const
+{
+	double entropy = 0.0;
+	if (match.year < 100) {
+		// Two-digit year
+		entropy = ::log2((double)(max_day * max_month * 100));
+	} else {
+		// Four-digit year
+		entropy = ::log2((double)(max_day * max_month * (max_year - min_year)));
+	}
+
+	if (!match.separator.empty()) {
+		// add two bits for separator selection [/,-,.,etc]
+		entropy += 2.0;
+	}
+	return entropy;
 }

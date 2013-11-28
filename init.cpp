@@ -11,7 +11,8 @@ zxcppvbn::match_result::match_result(match_pattern p)
 	  sub(), sub_display(), l33t_entropy(),
 	  graph(), turns(0), shifted_count(0),
 	  repeated_char('\0'),
-	  sequence_name(), sequence_space(0), ascending(false)
+	  sequence_name(), sequence_space(0), ascending(false),
+	  year(0), month(0), day(0), separator()
 {
 }
 
@@ -274,6 +275,7 @@ void zxcppvbn::build_matchers()
 	matchers.push_back(std::bind(&zxcppvbn::sequence_match, this, std::placeholders::_1));
 	matchers.push_back(std::bind(&zxcppvbn::digits_match, this, std::placeholders::_1));
 	matchers.push_back(std::bind(&zxcppvbn::year_match, this, std::placeholders::_1));
+	matchers.push_back(std::bind(&zxcppvbn::date_match, this, std::placeholders::_1));
 }
 
 // Create entropy calculation functions
@@ -286,6 +288,7 @@ void zxcppvbn::build_entropy_functions()
 	entropy_functions.insert(std::make_pair(match_pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::DIGITS, std::bind(&zxcppvbn::digits_entropy, this, std::placeholders::_1)));
 	entropy_functions.insert(std::make_pair(match_pattern::YEAR, std::bind(&zxcppvbn::year_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(match_pattern::DATE, std::bind(&zxcppvbn::date_entropy, this, std::placeholders::_1)));
 }
 
 
