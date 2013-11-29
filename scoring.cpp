@@ -53,7 +53,7 @@ size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password) const
 // Complex scoring
 //////////////////////////////////////////////////////////////////////////
 
-zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match_result>>& matches) const
+zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match>>& matches) const
 {
 	size_t bruteforce_cardinality = calc_bruteforce_cardinality(password);
 	size_t password_size = password.size();
@@ -81,11 +81,11 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	}
 
 	// walk backwards and decode the best sequence
-	std::vector<std::unique_ptr<match_result>> match_sequence;
+	std::vector<std::unique_ptr<match>> match_sequence;
 	int32_t k2 = password_size - 1;
 	while (k2 >= 0) {
 		if (backpointers[k2] >= 0) {
-			std::unique_ptr<match_result>& match = matches[backpointers[k2]];
+			std::unique_ptr<match>& match = matches[backpointers[k2]];
 			k2 = match->i - 1;
 			match_sequence.push_back(std::move(match));
 		} else {
@@ -96,8 +96,8 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 
 	// Fill in the blanks between pattern matches with bruteforce "matches"
 	// That way the match sequence fully covers the password : match1.j == match2.i - 1 for every adjacent match1, match2.
-	auto make_bruteforce_match = [this, &password, &bruteforce_cardinality](size_t i, size_t j) -> std::unique_ptr<match_result> {
-		std::unique_ptr<match_result> result(new match_result(match_pattern::BRUTEFORCE));
+	auto make_bruteforce_match = [this, &password, &bruteforce_cardinality](size_t i, size_t j) -> std::unique_ptr<match> {
+		std::unique_ptr<match> result(new match(pattern::BRUTEFORCE));
 		result->i = i;
 		result->j = j;
 		result->token = substr(password, i, j);
@@ -126,7 +126,9 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 	// Assemble result
 	res.password = password;
 	res.entropy = min_entropy;
-	res.crack_time = std::chrono::seconds(crack_seconds > std::numeric_limits<int64_t>::max() ? std::numeric_limits<int64_t>::max() : (int64_t)crack_seconds);
+
+	uint64_t max_seconds = std::numeric_limits<std::chrono::seconds::rep>::max();
+	res.crack_time = std::chrono::seconds((crack_seconds > max_seconds ? max_seconds : crack_seconds));
 	res.crack_time_display = calc_display_time(crack_seconds);
 	res.score = crack_time_to_score(crack_seconds);
 	return std::move(res);
@@ -221,7 +223,7 @@ std::string zxcppvbn::calc_display_time(uint64_t seconds) const
 //////////////////////////////////////////////////////////////////////////
 
 // Calculate entropy of a given submatch
-double zxcppvbn::calc_entropy(match_result& match) const
+double zxcppvbn::calc_entropy(match& match) const
 {
 	// Only calculate once
 	if (match.entropy <= 0.0) {
@@ -231,7 +233,7 @@ double zxcppvbn::calc_entropy(match_result& match) const
 }
 
 // Calculate entropy of non-l33t dictionary word
-double zxcppvbn::dictionary_entropy(match_result& match) const
+double zxcppvbn::dictionary_entropy(match& match) const
 {
 	match.base_entropy = ::log2((double)match.rank);
 	match.uppercase_entropy = extra_uppercase_entropy(match);
@@ -239,7 +241,7 @@ double zxcppvbn::dictionary_entropy(match_result& match) const
 }
 
 // Calculate extra entropy from uppercase letters
-double zxcppvbn::extra_uppercase_entropy(const match_result& match) const
+double zxcppvbn::extra_uppercase_entropy(const match& match) const
 {
 	const std::string& word = match.token;
 	size_t len = word.size();
@@ -300,14 +302,14 @@ double zxcppvbn::extra_uppercase_entropy(const match_result& match) const
 }
 
 // Calculate entropy of l33t-substituted dictionary word
-double zxcppvbn::l33t_entropy(match_result& match) const
+double zxcppvbn::l33t_entropy(match& match) const
 {
 	match.l33t_entropy = extra_l33t_entropy(match);
 	return dictionary_entropy(match) + match.l33t_entropy;
 }
 
 // Calculate extra entropy caused by l33t substitutions
-double zxcppvbn::extra_l33t_entropy(const match_result& match) const
+double zxcppvbn::extra_l33t_entropy(const match& match) const
 {
 	uint64_t possibilities = 0;
 	for (auto& it : match.sub) {
@@ -328,7 +330,7 @@ double zxcppvbn::extra_l33t_entropy(const match_result& match) const
 }
 
 // Calculate entropy of a neighboring keyboard keystroke sequence
-double zxcppvbn::spatial_entropy(const match_result& match) const
+double zxcppvbn::spatial_entropy(const match& match) const
 {
 	double s, d;
 
@@ -372,14 +374,14 @@ double zxcppvbn::spatial_entropy(const match_result& match) const
 }
 
 // Calculate entropy of a repeat match
-double zxcppvbn::repeat_entropy(const match_result& match) const
+double zxcppvbn::repeat_entropy(const match& match) const
 {
 	size_t cardinality = calc_bruteforce_cardinality(match.token);
 	return ::log2((double)(cardinality * match.token.length()));
 }
 
 // Calculate entropy of a sequence match
-double zxcppvbn::sequence_entropy(const match_result& match) const
+double zxcppvbn::sequence_entropy(const match& match) const
 {
 	double base_entropy = 0;
 	char first_chr = match.token[0];
@@ -407,7 +409,7 @@ double zxcppvbn::sequence_entropy(const match_result& match) const
 }
 
 // Calculate entropy of simple digits
-double zxcppvbn::digits_entropy(const match_result& match) const
+double zxcppvbn::digits_entropy(const match& match) const
 {
 	return ::log2(::pow(10.0, match.token.length()));
 }
@@ -418,13 +420,13 @@ const uint8_t zxcppvbn::max_month = 12;
 const uint8_t zxcppvbn::max_day = 31;
 
 // Calculate entropy of year numbers
-double zxcppvbn::year_entropy(const match_result& match) const
+double zxcppvbn::year_entropy(const match& match) const
 {
 	return ::log2((double)(max_year - min_year));
 }
 
 // Calculate entropy of dates
-double zxcppvbn::date_entropy(const match_result& match) const
+double zxcppvbn::date_entropy(const match& match) const
 {
 	double entropy = 0.0;
 	if (match.year < 100) {

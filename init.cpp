@@ -5,7 +5,7 @@
 #include <numeric>
 
 // Init to empty, no submatch without a valid pattern
-zxcppvbn::match_result::match_result(match_pattern p)
+zxcppvbn::match::match(zxcppvbn::pattern p)
 	: pattern(p), i(0), j(0), token(), entropy(0.0),
 	  dictionary_name(), matched_word(), rank(0), base_entropy(0), uppercase_entropy(0),
 	  sub(), sub_display(), l33t_entropy(),
@@ -43,7 +43,7 @@ zxcppvbn::result& zxcppvbn::result::operator=(const result& o)
 		crack_time_display = o.crack_time_display;
 		score = o.score;
 		for (auto& match : o.matches) {
-			matches.push_back(std::unique_ptr<match_result>(new match_result(*match)));
+			matches.push_back(std::unique_ptr<zxcppvbn::match>(new zxcppvbn::match(*match)));
 		}
 		calc_time = o.calc_time;
 	}
@@ -281,14 +281,14 @@ void zxcppvbn::build_matchers()
 // Create entropy calculation functions
 void zxcppvbn::build_entropy_functions()
 {
-	entropy_functions.insert(std::make_pair(match_pattern::DICTIONARY, std::bind(&zxcppvbn::dictionary_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::L33T, std::bind(&zxcppvbn::l33t_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::SPATIAL, std::bind(&zxcppvbn::spatial_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::REPEAT, std::bind(&zxcppvbn::repeat_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::DIGITS, std::bind(&zxcppvbn::digits_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::YEAR, std::bind(&zxcppvbn::year_entropy, this, std::placeholders::_1)));
-	entropy_functions.insert(std::make_pair(match_pattern::DATE, std::bind(&zxcppvbn::date_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::DICTIONARY, std::bind(&zxcppvbn::dictionary_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::L33T, std::bind(&zxcppvbn::l33t_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::SPATIAL, std::bind(&zxcppvbn::spatial_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::REPEAT, std::bind(&zxcppvbn::repeat_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::SEQUENCE, std::bind(&zxcppvbn::sequence_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::DIGITS, std::bind(&zxcppvbn::digits_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::YEAR, std::bind(&zxcppvbn::year_entropy, this, std::placeholders::_1)));
+	entropy_functions.insert(std::make_pair(pattern::DATE, std::bind(&zxcppvbn::date_entropy, this, std::placeholders::_1)));
 }
 
 
@@ -322,7 +322,7 @@ zxcppvbn::result zxcppvbn::operator()(const std::string& password, const std::ve
 	}
 
 	// calculate result
-	std::vector<std::unique_ptr<match_result>> matches = omnimatch(password);
+	std::vector<std::unique_ptr<match>> matches = omnimatch(password);
 	result res = minimum_entropy_match_sequence(password, matches);
 	res.calc_time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start);
 	return std::move(res);

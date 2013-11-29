@@ -15,7 +15,7 @@ class zxcppvbn
 {
 public:
 	// Type of a specific submatch
-	enum class match_pattern
+	enum class pattern : uint8_t
 	{
 		DICTIONARY,
 		L33T,
@@ -29,8 +29,8 @@ public:
 	};
 
 	// Submatch
-	struct match_result {
-		match_pattern pattern;
+	struct match {
+		pattern pattern;
 		size_t i;
 		size_t j;
 		std::string token;
@@ -61,16 +61,16 @@ public:
 		size_t sequence_space;
 		bool ascending;
 
-		// BRUTEFORCE
-		size_t cardinality;
-
 		// DATE
 		uint16_t year;
 		uint16_t month;
 		uint16_t day;
 		std::string separator;
 
-		match_result(match_pattern p);
+		// BRUTEFORCE
+		size_t cardinality;
+
+		match(zxcppvbn::pattern p);
 	};
 
 	// Password estimation result
@@ -80,7 +80,7 @@ public:
 		std::chrono::seconds crack_time;
 		std::string crack_time_display;
 		int score;
-		std::vector<std::unique_ptr<match_result>> matches;
+		std::vector<std::unique_ptr<match>> matches;
 		std::chrono::milliseconds calc_time;
 
 		result();
@@ -106,13 +106,13 @@ private:
 	std::vector<std::tuple<char /* min */, char /* max */, size_t /* cardinality */>> char_classes_cardinality;
 
 	// Function prototypes
-	typedef std::function<std::vector<std::unique_ptr<match_result>>(const std::string&)> matcher_func;
-	typedef std::function<double(match_result&)> entropy_func;
+	typedef std::function<std::vector<std::unique_ptr<match>>(const std::string&)> matcher_func;
+	typedef std::function<double(match&)> entropy_func;
 
 	// Function maps
 	std::vector<matcher_func> dictionary_matchers;
 	std::vector<matcher_func> matchers;
-	std::map<match_pattern, entropy_func> entropy_functions;
+	std::map<pattern, entropy_func> entropy_functions;
 
 	// Initializer functions (init.cpp)
 
@@ -136,33 +136,33 @@ private:
 	std::string translate(const std::string& password, const std::map<char, char>& chr_map) const;
 	std::string substr(const std::string& password, size_t i, size_t j) const;
 	// Complex matching
-	std::vector<std::unique_ptr<match_result>> omnimatch(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> omnimatch(const std::string& password) const;
 	// Dictionary matching
-	std::vector<std::unique_ptr<match_result>> dictionary_match(const std::string& password, const std::string& dictionary) const;
+	std::vector<std::unique_ptr<match>> dictionary_match(const std::string& password, const std::string& dictionary) const;
 	// L33t matching
 	std::map<char, std::vector<char>> relevent_l33t_subtable(const std::string& password) const;
 	std::vector<std::map<char, char>> enumerate_l33t_subs(const std::map<char, std::vector<char>>& table) const;
-	std::vector<std::unique_ptr<match_result>> l33t_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> l33t_match(const std::string& password) const;
 	// Spatial matching
-	std::vector<std::unique_ptr<match_result>> spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::string>>& graph) const;
-	std::vector<std::unique_ptr<match_result>> spatial_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> spatial_match_helper(const std::string& password, const std::string& graph_name, const std::map<char, std::vector<std::string>>& graph) const;
+	std::vector<std::unique_ptr<match>> spatial_match(const std::string& password) const;
 	// Repeats and sequences matching
-	std::vector<std::unique_ptr<match_result>> repeat_match(const std::string& password) const;
-	std::vector<std::unique_ptr<match_result>> sequence_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> repeat_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> sequence_match(const std::string& password) const;
 	// Digits, years and dates matching
 	std::vector<std::pair<size_t, size_t>> findall(const std::string& password, const std::regex& rx) const;
 	std::vector<std::tuple<size_t, size_t, std::vector<std::string>>> splitall(const std::string& password, const std::regex& rx, const std::regex& subrx) const;
 	static const std::regex digits_rx;
-	std::vector<std::unique_ptr<match_result>> digits_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> digits_match(const std::string& password) const;
 	static const std::regex year_rx;
-	std::vector<std::unique_ptr<match_result>> year_match(const std::string& password) const;
-	std::vector<std::unique_ptr<match_result>> date_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> year_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> date_match(const std::string& password) const;
 	static const std::regex date_rx_without_sep;
-	std::vector<std::unique_ptr<match_result>> date_without_sep_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> date_without_sep_match(const std::string& password) const;
 	static const std::regex date_rx_year_suffix;
 	static const std::regex date_rx_year_prefix;
 	static const std::regex date_rx_split;
-	std::vector<std::unique_ptr<match_result>> date_sep_match(const std::string& password) const;
+	std::vector<std::unique_ptr<match>> date_sep_match(const std::string& password) const;
 
 	// Scoring functions (scoring.cpp)
 
@@ -170,7 +170,7 @@ private:
 	uint64_t nCk(uint64_t n, uint64_t k) const;
 	size_t calc_bruteforce_cardinality(const std::string& password) const;
 	// Complex scoring
-	result minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match_result>>& matches) const;
+	result minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match>>& matches) const;
 	// Crack time constants and functions
 	static const double single_guess;
 	static const double num_attackers;
@@ -178,26 +178,26 @@ private:
 	int crack_time_to_score(uint64_t seconds) const;
 	std::string calc_display_time(uint64_t seconds) const;
 	// Entropy calculation constants and functions
-	double calc_entropy(match_result& match) const;
+	double calc_entropy(match& match) const;
 	// Dictionary entropy
-	double dictionary_entropy(match_result& match) const;
-	double extra_uppercase_entropy(const match_result& match) const;
+	double dictionary_entropy(match& match) const;
+	double extra_uppercase_entropy(const match& match) const;
 	// L33t entropy
-	double l33t_entropy(match_result& match) const;
-	double extra_l33t_entropy(const match_result& match) const;
+	double l33t_entropy(match& match) const;
+	double extra_l33t_entropy(const match& match) const;
 	// Spatial entropy
-	double spatial_entropy(const match_result& match) const;
+	double spatial_entropy(const match& match) const;
 	// Repeats and sequences entropy
-	double repeat_entropy(const match_result& match) const;
-	double sequence_entropy(const match_result& match) const;
+	double repeat_entropy(const match& match) const;
+	double sequence_entropy(const match& match) const;
 	// Digits, years and dates entropy
-	double digits_entropy(const match_result& match) const;
+	double digits_entropy(const match& match) const;
 	static const uint16_t min_year;
 	static const uint16_t max_year;
 	static const uint8_t max_month;
 	static const uint8_t max_day;
-	double year_entropy(const match_result& match) const;
-	double date_entropy(const match_result& match) const;
+	double year_entropy(const match& match) const;
+	double date_entropy(const match& match) const;
 	bool check_date(uint16_t year, uint16_t& month, uint16_t& day) const;
 
 public:
