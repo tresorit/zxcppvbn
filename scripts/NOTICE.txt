@@ -1,0 +1,5 @@
+The Python scripts located in this folder are a slightly modified versions of the ones found in the original zxcvbn library.
+
+The original version of this library can be found at:
+
+https://github.com/lowe/zxcvbn

@@ -1,0 +1,6 @@
+These are the unmodified source files of the tinf library. 
+
+The original version of this library can be found at:
+
+https://bitbucket.org/jibsen/tinf
+http://www.ibsensoftware.com/

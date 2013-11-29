@@ -1,0 +1,13 @@
+This software contains source code of the following open-source library:
+
+	tinf - tiny inflate library
+	Copyright (c) 2003 Joergen Ibsen
+	
+	See tools/tinf/NOTICE.txt and tools/tinf/LICENCE.txt
+
+This software is based on a similar library written in CoffeeScript and Python:
+
+    zxcvbn - realistic password strength estimation library
+	Copyright (c) 2012 Dropbox, Inc.
+
+	See scripts/NOTICE.txt and scripts/LICENCE.txt
