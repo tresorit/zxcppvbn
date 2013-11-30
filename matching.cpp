@@ -544,7 +544,7 @@ std::vector<std::unique_ptr<zxcppvbn::match>> zxcppvbn::date_without_sep_match(c
 		}
 
 		// Parse day/month alternatives
-		std::vector<std::tuple<size_t /* i */, size_t /* j */, std::string /* year */, std::string /* day */, std::string /* month */>> candidates_round2;
+		std::vector<std::tuple<size_t /* i */, size_t /* j */, std::string /* year */, std::string /* month */, std::string /* day */>> candidates_round2;
 		for (auto& candidate : candidates_round1) {
 			size_t i = std::get<0>(candidate), j = std::get<1>(candidate);
 			std::string& year = std::get<2>(candidate);
@@ -645,10 +645,11 @@ bool zxcppvbn::check_date(uint16_t year, uint16_t& month, uint16_t& day) const
 		std::swap(month, day);
 	}
 
-	if (day > max_day || month > max_month) {
+	if (max_day < day || day < min_day || max_month < month || month < min_month) {
 		return false;
 	}
-	if (year < min_year || year > max_year) {
+	// Any two-digit years are accepted
+	if (year < 10 || (99 < year && year < min_year) || max_year < year) {
 		return false;
 	}
 

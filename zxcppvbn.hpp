@@ -194,8 +194,10 @@ private:
 	double digits_entropy(const match& match) const;
 	static const uint16_t min_year;
 	static const uint16_t max_year;
-	static const uint8_t max_month;
-	static const uint8_t max_day;
+	static const uint16_t min_month;
+	static const uint16_t max_month;
+	static const uint16_t min_day;
+	static const uint16_t max_day;
 	double year_entropy(const match& match) const;
 	double date_entropy(const match& match) const;
 	bool check_date(uint16_t year, uint16_t& month, uint16_t& day) const;

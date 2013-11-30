@@ -416,8 +416,10 @@ double zxcppvbn::digits_entropy(const match& match) const
 
 const uint16_t zxcppvbn::min_year = 1900;
 const uint16_t zxcppvbn::max_year = 2019;
-const uint8_t zxcppvbn::max_month = 12;
-const uint8_t zxcppvbn::max_day = 31;
+const uint16_t zxcppvbn::min_month = 1;
+const uint16_t zxcppvbn::max_month = 12;
+const uint16_t zxcppvbn::min_day = 1;
+const uint16_t zxcppvbn::max_day = 31;
 
 // Calculate entropy of year numbers
 double zxcppvbn::year_entropy(const match& match) const
