@@ -3,6 +3,7 @@
 #include <cmath>
 #include <sstream>
 #include <limits>
+#include <numeric>
 
 //////////////////////////////////////////////////////////////////////////
 // Utility functions
@@ -55,17 +56,17 @@ size_t zxcppvbn::calc_bruteforce_cardinality(const std::string& password) const
 
 zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& password, std::vector<std::unique_ptr<match>>& matches) const
 {
-	size_t bruteforce_cardinality = calc_bruteforce_cardinality(password);
 	size_t password_size = password.size();
 	if (password_size == 0) {
 		return result();
 	}
+	double bruteforce_entropy = ::log2((double)calc_bruteforce_cardinality(password));
 
 	std::vector<double> up_to_k(password_size, 0.0);        // minimum entropy up to k.
 	std::vector<int32_t> backpointers(password_size, -1);        // for the optimal sequence of matches up to k, holds the final match (match.j == k). match.pattern == unknown means the sequence ends w/ a brute-force character.
 	for (size_t k = 0; k < password_size; k++) {
 		// starting scenario to try and beat : adding a brute-force character to the minimum entropy sequence at k - 1.
-		up_to_k[k] = ((k > 0) ? up_to_k[k - 1] : 0.0) + ::log2((double)bruteforce_cardinality);
+		up_to_k[k] = ((k > 0) ? up_to_k[k - 1] : 0.0) + bruteforce_entropy;
 		backpointers[k] = -1;
 		for (size_t l = 0; l < matches.size(); l++) {
 			auto& match = matches[l];
@@ -96,38 +97,41 @@ zxcppvbn::result zxcppvbn::minimum_entropy_match_sequence(const std::string& pas
 
 	// Fill in the blanks between pattern matches with bruteforce "matches"
 	// That way the match sequence fully covers the password : match1.j == match2.i - 1 for every adjacent match1, match2.
-	auto make_bruteforce_match = [this, &password, &bruteforce_cardinality](size_t i, size_t j) -> std::unique_ptr<match> {
+	auto make_bruteforce_match = [this, &password](size_t i, size_t j) -> std::unique_ptr<match> {
 		std::unique_ptr<match> result(new match(pattern::BRUTEFORCE));
 		result->i = i;
 		result->j = j;
 		result->token = substr(password, i, j);
-		result->entropy = ::log2((double)::pow(bruteforce_cardinality, j - i + 1));
-		result->cardinality = bruteforce_cardinality;
+		result->cardinality = calc_bruteforce_cardinality(result->token);
+		result->entropy = ::log2((double)::pow(result->cardinality, j - i + 1));
 		return result;
 	};
 
-	// Assemble matches
+	// Assemble matches and entropy
 	result res;
 	size_t k3 = 0;
 	for (auto& match : match_sequence) {
 		if (match->i - k3 > 0) {
-			res.matches.push_back(make_bruteforce_match(k3, match->i - 1));
+			std::unique_ptr<zxcppvbn::match> bruteforce = make_bruteforce_match(k3, match->i - 1);
+			res.entropy += bruteforce->entropy;
+			res.matches.push_back(std::move(bruteforce));
 		}
 		k3 = match->j + 1;
+		res.entropy += match->entropy;
 		res.matches.push_back(std::move(match));
 	}
 	if (k3 < password.size()) {
-		res.matches.push_back(make_bruteforce_match(k3, password.size() - 1));
+		std::unique_ptr<zxcppvbn::match> bruteforce = make_bruteforce_match(k3, password_size - 1);
+		res.entropy += bruteforce->entropy;
+		res.matches.push_back(std::move(bruteforce));
 	}
 
-	double min_entropy = up_to_k[password_size - 1];
-	uint64_t crack_seconds = entropy_to_crack_time(min_entropy);
-
-	// Assemble result
-	res.password = password;
-	res.entropy = min_entropy;
-
+	// Calc crack time
+	uint64_t crack_seconds = entropy_to_crack_time(res.entropy);
 	uint64_t max_seconds = std::numeric_limits<std::chrono::seconds::rep>::max();
+
+	// Assemble rest of result
+	res.password = password;
 	res.crack_time = std::chrono::seconds((crack_seconds > max_seconds ? max_seconds : crack_seconds));
 	res.crack_time_display = calc_display_time(crack_seconds);
 	res.score = crack_time_to_score(crack_seconds);
