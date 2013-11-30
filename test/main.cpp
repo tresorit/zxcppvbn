@@ -5,7 +5,23 @@
 void render_match(const zxcppvbn::match& match)
 {
 	std::cout << "  token: " << match.token << std::endl;;
-	std::cout << "   pattern: " << '0' + (std::underlying_type<zxcppvbn::pattern>::type)match.pattern;
+	std::cout << "   pattern: ";
+	switch (match.pattern) {
+	case zxcppvbn::pattern::L33T:
+		std::cout << "L33T"; break;
+	case zxcppvbn::pattern::DICTIONARY:
+		std::cout << "DICTIONARY"; break;
+	case zxcppvbn::pattern::SPATIAL:
+		std::cout << "SPATIAL"; break;
+	case zxcppvbn::pattern::REPEAT:
+		std::cout << "REPEAT"; break;
+	case zxcppvbn::pattern::SEQUENCE:
+		std::cout << "SEQUENCE"; break;
+	case zxcppvbn::pattern::DATE:
+		std::cout << "DATE"; break;
+	case zxcppvbn::pattern::BRUTEFORCE:
+		std::cout << "BRUTEFORCE"; break;
+	}
 	std::cout << ", i: " << match.i << ", j: " << match.j;
 	std::cout << ", entropy: " << match.entropy << std::endl;
 	switch (match.pattern) {
