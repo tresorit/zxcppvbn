@@ -86,7 +86,7 @@ int main()
 
 		"D0g..................",
 		"abcdefghijk987654321",
-		"neverforget13 / 3 / 1997",
+		"neverforget13/3/1997",
 		"1qaz2wsx3edc",
 
 		"temppass22",
