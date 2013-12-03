@@ -162,7 +162,13 @@ uint64_t zxcppvbn::entropy_to_crack_time(double entropy) const
 	double seconds_per_guess = single_guess / num_attackers;
 	// average, not total
 	double seconds = 0.5 * ::pow(2, entropy) * seconds_per_guess;
-	return (uint64_t)::floor(seconds);
+	// prevent overflow
+	double max_seconds = std::numeric_limits<uint64_t>::max();
+	if (seconds >= max_seconds) {
+		return std::numeric_limits<uint64_t>::max();
+	} else {
+		return (uint64_t)::floor(seconds);
+	}
 }
 
 // Return an easily interpretable score value (on a scale from 0 to 5)
