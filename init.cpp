@@ -79,7 +79,7 @@ bool zxcppvbn::build_ranked_dicts()
 {
 	// Decompress from byte array
 	tinf_init();
-	size_t dsize = calc_decompressed_size(frequency_lists, frequency_lists_size);
+	unsigned int dsize = calc_decompressed_size(frequency_lists, frequency_lists_size);
 	std::unique_ptr<uint8_t[]> raw(new uint8_t[dsize]);
 	if (tinf_gzip_uncompress(raw.get(), &dsize, frequency_lists, frequency_lists_size) != TINF_OK) {
 		return false;
@@ -120,7 +120,7 @@ bool zxcppvbn::build_graphs()
 {
 	// Decompress from byte array
 	tinf_init();
-	size_t dsize = calc_decompressed_size(adjacency_graphs, adjacency_graphs_size);
+	unsigned int dsize = calc_decompressed_size(adjacency_graphs, adjacency_graphs_size);
 	std::unique_ptr<uint8_t[]> raw(new uint8_t[dsize]);
 	if (tinf_gzip_uncompress(raw.get(), &dsize, adjacency_graphs, adjacency_graphs_size) != TINF_OK) {
 		return false;
